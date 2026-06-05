@@ -72,8 +72,8 @@
       <td align="center">4.5</td>
       <td align="center">4.0</td>
       <td align="center">4.8</td>
-      <td align="center"><!-- availability:cctv-tv -->⚪ 未&#8288;检测<!-- /availability:cctv-tv --></td>
-      <td align="center"><!-- availability-date:cctv-tv -->—<!-- /availability-date:cctv-tv --></td>
+      <td align="center"><!-- availability:cctv-tv -->🟢 可&#8288;访问<!-- /availability:cctv-tv --></td>
+      <td align="center"><!-- availability-date:cctv-tv -->2026&#8209;06&#8209;05<!-- /availability-date:cctv-tv --></td>
     </tr>
     <tr>
       <td><a href="https://www.1905.com/vod/">1905 电影网</a></td>
@@ -82,8 +82,8 @@
       <td align="center">4.2</td>
       <td align="center">3.5</td>
       <td align="center">4.5</td>
-      <td align="center"><!-- availability:1905-vod -->⚪ 未&#8288;检测<!-- /availability:1905-vod --></td>
-      <td align="center"><!-- availability-date:1905-vod -->—<!-- /availability-date:1905-vod --></td>
+      <td align="center"><!-- availability:1905-vod -->🟢 可&#8288;访问<!-- /availability:1905-vod --></td>
+      <td align="center"><!-- availability-date:1905-vod -->2026&#8209;06&#8209;05<!-- /availability-date:1905-vod --></td>
     </tr>
     <tr>
       <td><a href="https://archive.org/details/movies">Internet Archive Movies</a></td>
@@ -92,8 +92,8 @@
       <td align="center">3.0</td>
       <td align="center">4.8</td>
       <td align="center">4.6</td>
-      <td align="center"><!-- availability:internet-archive-movies -->⚪ 未&#8288;检测<!-- /availability:internet-archive-movies --></td>
-      <td align="center"><!-- availability-date:internet-archive-movies -->—<!-- /availability-date:internet-archive-movies --></td>
+      <td align="center"><!-- availability:internet-archive-movies -->🟢 可&#8288;访问<!-- /availability:internet-archive-movies --></td>
+      <td align="center"><!-- availability-date:internet-archive-movies -->2026&#8209;06&#8209;05<!-- /availability-date:internet-archive-movies --></td>
     </tr>
   </tbody>
 </table>
@@ -127,8 +127,8 @@ _等待首条通过验证的精选资源。你可以 [推荐一个资源](https:
       <td align="center">3.5</td>
       <td align="center">4.8</td>
       <td align="center">4.2</td>
-      <td align="center"><!-- availability:academic-torrents -->⚪ 未&#8288;检测<!-- /availability:academic-torrents --></td>
-      <td align="center"><!-- availability-date:academic-torrents -->—<!-- /availability-date:academic-torrents --></td>
+      <td align="center"><!-- availability:academic-torrents -->🟢 可&#8288;访问<!-- /availability:academic-torrents --></td>
+      <td align="center"><!-- availability-date:academic-torrents -->2026&#8209;06&#8209;05<!-- /availability-date:academic-torrents --></td>
     </tr>
   </tbody>
 </table>
@@ -158,8 +158,8 @@ _等待首条通过验证的精选资源。你可以 [推荐一个资源](https:
       <td align="center">3.2</td>
       <td align="center">2.8</td>
       <td align="center">4.5</td>
-      <td align="center"><!-- availability:opensubtitles -->⚪ 未&#8288;检测<!-- /availability:opensubtitles --></td>
-      <td align="center"><!-- availability-date:opensubtitles -->—<!-- /availability-date:opensubtitles --></td>
+      <td align="center"><!-- availability:opensubtitles -->🟡 访问&#8288;受限<!-- /availability:opensubtitles --></td>
+      <td align="center"><!-- availability-date:opensubtitles -->2026&#8209;06&#8209;05<!-- /availability-date:opensubtitles --></td>
     </tr>
   </tbody>
 </table>
@@ -187,8 +187,8 @@ _等待首条通过验证的精选资源。你可以 [推荐一个资源](https:
       <td align="center">4.0</td>
       <td align="center">5.0</td>
       <td align="center">4.8</td>
-      <td align="center"><!-- availability:kodi -->⚪ 未&#8288;检测<!-- /availability:kodi --></td>
-      <td align="center"><!-- availability-date:kodi -->—<!-- /availability-date:kodi --></td>
+      <td align="center"><!-- availability:kodi -->🟢 可&#8288;访问<!-- /availability:kodi --></td>
+      <td align="center"><!-- availability-date:kodi -->2026&#8209;06&#8209;05<!-- /availability-date:kodi --></td>
     </tr>
   </tbody>
 </table>
@@ -216,8 +216,8 @@ _等待首条通过验证的精选资源。你可以 [推荐一个资源](https:
       <td align="center">3.5</td>
       <td align="center">5.0</td>
       <td align="center">4.0</td>
-      <td align="center"><!-- availability:iptv-org -->⚪ 未&#8288;检测<!-- /availability:iptv-org --></td>
-      <td align="center"><!-- availability-date:iptv-org -->—<!-- /availability-date:iptv-org --></td>
+      <td align="center"><!-- availability:iptv-org -->🟢 可&#8288;访问<!-- /availability:iptv-org --></td>
+      <td align="center"><!-- availability-date:iptv-org -->2026&#8209;06&#8209;05<!-- /availability-date:iptv-org --></td>
     </tr>
   </tbody>
 </table>

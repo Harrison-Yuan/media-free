@@ -1,11 +1,89 @@
 {
   "version": 1,
-  "generated_at": null,
+  "generated_at": "2026-06-05T20:22:32.694Z",
   "checker": {
-    "environment": "not-run",
+    "environment": "github-actions",
     "timeout_ms": 15000,
     "concurrency": 4,
     "max_attempts": 2
   },
-  "results": []
+  "results": [
+    {
+      "resource_id": "cctv-tv",
+      "url": "https://tv.cctv.com/",
+      "status": "reachable",
+      "http_status": 200,
+      "final_url": "https://tv.cctv.com/",
+      "response_ms": 751,
+      "checked_at": "2026-06-05T20:22:31.598Z",
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "resource_id": "1905-vod",
+      "url": "https://www.1905.com/vod/",
+      "status": "reachable",
+      "http_status": 200,
+      "final_url": "https://www.1905.com/vod/",
+      "response_ms": 863,
+      "checked_at": "2026-06-05T20:22:31.660Z",
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "resource_id": "internet-archive-movies",
+      "url": "https://archive.org/details/movies",
+      "status": "reachable",
+      "http_status": 206,
+      "final_url": "https://archive.org/details/movies",
+      "response_ms": 602,
+      "checked_at": "2026-06-05T20:22:31.661Z",
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "resource_id": "opensubtitles",
+      "url": "https://www.opensubtitles.com/zh-CN",
+      "status": "restricted",
+      "http_status": 403,
+      "final_url": "https://www.opensubtitles.com/zh-CN",
+      "response_ms": 531,
+      "checked_at": "2026-06-05T20:22:31.664Z",
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "resource_id": "kodi",
+      "url": "https://kodi.tv/",
+      "status": "reachable",
+      "http_status": 200,
+      "final_url": "https://kodi.tv/",
+      "response_ms": 199,
+      "checked_at": "2026-06-05T20:22:32.195Z",
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "resource_id": "iptv-org",
+      "url": "https://github.com/iptv-org/iptv",
+      "status": "reachable",
+      "http_status": 206,
+      "final_url": "https://github.com/iptv-org/iptv",
+      "response_ms": 431,
+      "checked_at": "2026-06-05T20:22:32.263Z",
+      "attempts": 1,
+      "error": null
+    },
+    {
+      "resource_id": "academic-torrents",
+      "url": "https://academictorrents.com/",
+      "status": "reachable",
+      "http_status": 200,
+      "final_url": "https://academictorrents.com/",
+      "response_ms": 198,
+      "checked_at": "2026-06-05T20:22:32.349Z",
+      "attempts": 1,
+      "error": null
+    }
+  ]
 }
