@@ -45,25 +45,24 @@
 
 > 精选内容来自 [`resources/resources.json`](resources/resources.json)。评分为当前验证结果，不是永久结论。`推荐` 表示整体体验较好；`谨慎` 表示可用，但存在需要特别留意的风险。
 
+### 在线影视
+
 <table width="100%">
   <thead>
     <tr>
-      <th>资源</th>
-      <th>简介</th>
-      <th>多</th>
-      <th>快</th>
-      <th>净</th>
-      <th>稳</th>
-      <th>易</th>
-      <th>状&#8288;态</th>
-      <th>风&#8288;险</th>
-      <th>验&#8288;证</th>
+      <th width="18%">资源</th>
+      <th width="27%">简介</th>
+      <th width="5%">多</th>
+      <th width="5%">快</th>
+      <th width="5%">净</th>
+      <th width="5%">稳</th>
+      <th width="5%">易</th>
+      <th width="8%">状态</th>
+      <th width="7%">风&#8288;险</th>
+      <th width="15%">验证</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td colspan="10"><a name="在线影视"></a><h3>在线影视</h3></td>
-    </tr>
     <tr>
       <td><a href="https://tv.cctv.com/">CCTV 节目官网</a></td>
       <td>总台节目与频道观看入口</td>
@@ -72,9 +71,9 @@
       <td align="center">4.0</td>
       <td align="center">4.8</td>
       <td align="center">4.2</td>
-      <td align="center">推&#8288;荐</td>
+      <td align="center">推荐</td>
       <td align="center">低</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
+      <td align="center">2026-06-06</td>
     </tr>
     <tr>
       <td><a href="https://www.1905.com/vod/">1905 电影网</a></td>
@@ -84,61 +83,117 @@
       <td align="center">3.5</td>
       <td align="center">4.5</td>
       <td align="center">4.0</td>
-      <td align="center">推&#8288;荐</td>
+      <td align="center">推荐</td>
       <td align="center">低</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
+      <td align="center">2026-06-06</td>
     </tr>
     <tr>
-      <td><a href="https://archive.org/details/movies">Internet Archive<br> Movies</a></td>
+      <td><a href="https://archive.org/details/movies">Internet Archive Movies</a></td>
       <td>公共领域与用户上传视频资料</td>
       <td align="center">4.2</td>
       <td align="center">3.0</td>
       <td align="center">4.8</td>
       <td align="center">4.6</td>
       <td align="center">3.5</td>
-      <td align="center">推&#8288;荐</td>
+      <td align="center">推荐</td>
       <td align="center">中</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
+      <td align="center">2026-06-06</td>
     </tr>
+  </tbody>
+</table>
+
+<p align="right"><a href="#精选资源">返回分类导航</a></p>
+
+### 网盘资源搜索
+
+_等待首条通过验证的精选资源。你可以 [推荐一个资源](https://github.com/laoma2053/awesome-zhuiju-free/issues/new?template=resource.yml)。_
+
+### 磁力与 BT 搜索
+
+<table width="100%">
+  <thead>
     <tr>
-      <td colspan="10"><a name="网盘资源搜索"></a><h3>网盘资源搜索</h3></td>
+      <th width="18%">资源</th>
+      <th width="27%">简介</th>
+      <th width="5%">多</th>
+      <th width="5%">快</th>
+      <th width="5%">净</th>
+      <th width="5%">稳</th>
+      <th width="5%">易</th>
+      <th width="8%">状态</th>
+      <th width="7%">风&#8288;险</th>
+      <th width="15%">验证</th>
     </tr>
+  </thead>
+  <tbody>
     <tr>
-      <td colspan="10">等待首条通过验证的精选资源。你可以 <a href="https://github.com/laoma2053/awesome-zhuiju-free/issues/new?template=resource.yml">推荐一个资源</a>。</td>
-    </tr>
-    <tr>
-      <td colspan="10"><a name="磁力与-bt-搜索"></a><h3>磁力与 BT 搜索</h3></td>
-    </tr>
-    <tr>
-      <td><a href="https://academictorrents.com/">Academic<br> Torrents</a></td>
+      <td><a href="https://academictorrents.com/">Academic Torrents</a></td>
       <td>面向科研数据集的 BitTorrent 分发平台</td>
       <td align="center">2.8</td>
       <td align="center">3.5</td>
       <td align="center">4.8</td>
       <td align="center">4.2</td>
       <td align="center">3.2</td>
-      <td align="center">推&#8288;荐</td>
+      <td align="center">推荐</td>
       <td align="center">低</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
+      <td align="center">2026-06-06</td>
     </tr>
+  </tbody>
+</table>
+
+<p align="right"><a href="#精选资源">返回分类导航</a></p>
+
+### 字幕资源
+
+<table width="100%">
+  <thead>
     <tr>
-      <td colspan="10"><a name="字幕资源"></a><h3>字幕资源</h3></td>
+      <th width="18%">资源</th>
+      <th width="27%">简介</th>
+      <th width="5%">多</th>
+      <th width="5%">快</th>
+      <th width="5%">净</th>
+      <th width="5%">稳</th>
+      <th width="5%">易</th>
+      <th width="8%">状态</th>
+      <th width="7%">风&#8288;险</th>
+      <th width="15%">验证</th>
     </tr>
+  </thead>
+  <tbody>
     <tr>
-      <td><a href="https://www.opensubtitles.com/zh-CN">Open<br>Subtitles</a></td>
+      <td><a href="https://www.opensubtitles.com/zh-CN">OpenSubtitles</a></td>
       <td>多语言社区字幕搜索与下载</td>
       <td align="center">4.8</td>
       <td align="center">3.2</td>
       <td align="center">2.8</td>
       <td align="center">4.5</td>
       <td align="center">3.5</td>
-      <td align="center">谨&#8288;慎</td>
+      <td align="center">谨慎</td>
       <td align="center">中</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
+      <td align="center">2026-06-06</td>
     </tr>
+  </tbody>
+</table>
+
+### 播放器
+
+<table width="100%">
+  <thead>
     <tr>
-      <td colspan="10"><a name="播放器"></a><h3>播放器</h3></td>
+      <th width="18%">资源</th>
+      <th width="27%">简介</th>
+      <th width="5%">多</th>
+      <th width="5%">快</th>
+      <th width="5%">净</th>
+      <th width="5%">稳</th>
+      <th width="5%">易</th>
+      <th width="8%">状态</th>
+      <th width="7%">风&#8288;险</th>
+      <th width="15%">验证</th>
     </tr>
+  </thead>
+  <tbody>
     <tr>
       <td><a href="https://kodi.tv/">Kodi</a></td>
       <td>开源、跨平台家庭媒体中心</td>
@@ -147,13 +202,31 @@
       <td align="center">5.0</td>
       <td align="center">4.8</td>
       <td align="center">3.8</td>
-      <td align="center">推&#8288;荐</td>
+      <td align="center">推荐</td>
       <td align="center">低</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
+      <td align="center">2026-06-06</td>
     </tr>
+  </tbody>
+</table>
+
+### 订阅源
+
+<table width="100%">
+  <thead>
     <tr>
-      <td colspan="10"><a name="订阅源"></a><h3>订阅源</h3></td>
+      <th width="18%">资源</th>
+      <th width="27%">简介</th>
+      <th width="5%">多</th>
+      <th width="5%">快</th>
+      <th width="5%">净</th>
+      <th width="5%">稳</th>
+      <th width="5%">易</th>
+      <th width="8%">状态</th>
+      <th width="7%">风&#8288;险</th>
+      <th width="15%">验证</th>
     </tr>
+  </thead>
+  <tbody>
     <tr>
       <td><a href="https://github.com/iptv-org/iptv">IPTV-org</a></td>
       <td>社区维护的公开 IPTV 频道集合</td>
@@ -162,18 +235,18 @@
       <td align="center">5.0</td>
       <td align="center">4.0</td>
       <td align="center">3.0</td>
-      <td align="center">谨&#8288;慎</td>
+      <td align="center">谨慎</td>
       <td align="center">中</td>
-      <td align="center">2026&#8209;06&#8209;06</td>
-    </tr>
-    <tr>
-      <td colspan="10"><a name="会员拼团"></a><h3>会员拼团</h3></td>
-    </tr>
-    <tr>
-      <td colspan="10">等待首条通过验证的精选资源。仅收录规则透明、风险明确的会员拼团信息。</td>
+      <td align="center">2026-06-06</td>
     </tr>
   </tbody>
 </table>
+
+<p align="right"><a href="#精选资源">返回分类导航</a></p>
+
+### 会员拼团
+
+_等待首条通过验证的精选资源。仅收录规则透明、风险明确的会员拼团信息。_
 
 <p align="right"><a href="#精选资源">返回分类导航</a></p>
 
