@@ -23,10 +23,10 @@ function statusFromResponse(status) {
 
 function displayStatus(status) {
   return {
-    reachable: "🟢 可&#8288;访问",
-    restricted: "🟡 访问&#8288;受限",
-    unreachable: "🔴 无法&#8288;访问",
-    unknown: "⚪ 未&#8288;检测"
+    reachable: "🟢&#8288;可&#8288;访问",
+    restricted: "🟡&#8288;访问&#8288;受限",
+    unreachable: "🔴&#8288;无法&#8288;访问",
+    unknown: "⚪&#8288;未&#8288;检测"
   }[status];
 }
 

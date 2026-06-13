@@ -50,11 +50,11 @@ function replaceMarkedBlock(content, start, end, replacement, trailingNewlines) 
 
 function statusDisplay(status) {
   return {
-    reachable: "🟢 可&#8288;访问",
-    restricted: "🟡 访问&#8288;受限",
-    unreachable: "🔴 无法&#8288;访问",
-    unknown: "⚪ 未&#8288;检测"
-  }[status] ?? "⚪ 未&#8288;检测";
+    reachable: "🟢&#8288;可&#8288;访问",
+    restricted: "🟡&#8288;访问&#8288;受限",
+    unreachable: "🔴&#8288;无法&#8288;访问",
+    unknown: "⚪&#8288;未&#8288;检测"
+  }[status] ?? "⚪&#8288;未&#8288;检测";
 }
 
 function dateInTimeZone(timestamp) {
@@ -86,7 +86,7 @@ function recommendationStars(resource) {
       resource.scores.stable) /
     4;
   const rating = Math.min(5, Math.max(1, Math.round(average)));
-  return "🌟".repeat(rating);
+  return Array.from({ length: rating }, () => "🌟").join("&#8288;");
 }
 
 function tableFor(resources, availabilityById) {
@@ -99,8 +99,8 @@ function tableFor(resources, availabilityById) {
       return `    <tr>
       <td><a href="${escapeHtml(resource.url)}">${escapeHtml(resource.name)}</a></td>
       <td>${escapeHtml(shortSummary(resource))}</td>
-      <td align="center">${recommendationStars(resource)}</td>
-      <td align="center"><!-- availability:${resource.id} -->${status}<!-- /availability:${resource.id} --></td>
+      <td align="center" nowrap>${recommendationStars(resource)}</td>
+      <td align="center" nowrap><!-- availability:${resource.id} -->${status}<!-- /availability:${resource.id} --></td>
       <td align="center"><!-- availability-date:${resource.id} -->${checkedAt}<!-- /availability-date:${resource.id} --></td>
     </tr>`;
     })
@@ -110,10 +110,10 @@ function tableFor(resources, availabilityById) {
   <thead>
     <tr>
       <th width="20%">资源</th>
-      <th width="35%">简介</th>
-      <th width="15%">推荐指数</th>
-      <th width="12%">状&#8288;态</th>
-      <th width="18%">检&#8288;测</th>
+      <th width="30%">简介</th>
+      <th width="20%">推荐指数</th>
+      <th width="15%">状&#8288;态</th>
+      <th width="15%">检&#8288;测</th>
     </tr>
   </thead>
   <tbody>
