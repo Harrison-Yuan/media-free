@@ -10,37 +10,15 @@
   },
   "results": [
     {
-      "resource_id": "cctv-tv",
-      "url": "https://tv.cctv.com/",
-      "status": "reachable",
-      "http_status": 200,
-      "final_url": "https://tv.cctv.com/",
-      "response_ms": 827,
-      "checked_at": "2026-06-13T13:35:46.632Z",
-      "attempts": 1,
-      "error": null
-    },
-    {
-      "resource_id": "1905-vod",
-      "url": "https://www.1905.com/vod/",
-      "status": "reachable",
-      "http_status": 200,
-      "final_url": "https://www.1905.com/vod/",
-      "response_ms": 1064,
-      "checked_at": "2026-06-13T13:35:46.678Z",
-      "attempts": 1,
-      "error": null
-    },
-    {
-      "resource_id": "internet-archive-movies",
-      "url": "https://archive.org/details/movies",
-      "status": "reachable",
-      "http_status": 206,
-      "final_url": "https://archive.org/details/movies",
-      "response_ms": 943,
-      "checked_at": "2026-06-13T13:35:46.679Z",
-      "attempts": 1,
-      "error": null
+      "resource_id": "no-video",
+      "url": "https://www.novipnoad.cc/",
+      "status": "unknown",
+      "http_status": null,
+      "final_url": null,
+      "response_ms": null,
+      "checked_at": "2026-06-13T13:43:14.929Z",
+      "attempts": 0,
+      "error": "waiting for next GitHub Actions availability check"
     },
     {
       "resource_id": "opensubtitles",

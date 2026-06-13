@@ -1,13 +1,10 @@
 {
   "version": 1,
-  "updated_at": "2026-06-06",
+  "updated_at": "2026-06-13",
   "records": [
     {
       "id": "verify-20260606-initial",
       "resource_ids": [
-        "cctv-tv",
-        "1905-vod",
-        "internet-archive-movies",
         "opensubtitles",
         "kodi",
         "iptv-org",
@@ -22,6 +19,21 @@
       },
       "result": "available",
       "notes": "Demo 初始验证仅确认主页可访问。上线前应从实际用户网络环境重新测试核心功能并补充细节。"
+    },
+    {
+      "id": "verify-20260613-no-video",
+      "resource_ids": [
+        "no-video"
+      ],
+      "checked_at": "2026-06-13",
+      "checked_by": "maintainer",
+      "method": "manual",
+      "environment": {
+        "region": "unspecified",
+        "network": "user submitted"
+      },
+      "result": "pending_review",
+      "notes": "用户推荐：No影视，主打海外影视剧资源。已先按 4 星收录为精选，后续需要补充访问速度、广告干扰、版权和安全风险验证。"
     }
   ]
 }

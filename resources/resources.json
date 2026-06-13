@@ -4,116 +4,40 @@
   "updated_at": "2026-06-13",
   "resources": [
     {
-      "id": "cctv-tv",
-      "name": "CCTV 节目官网",
-      "url": "https://tv.cctv.com/",
+      "id": "no-video",
+      "name": "No影视",
+      "url": "https://www.novipnoad.cc/",
       "category": "online_video",
-      "summary": "中央广播电视总台的节目与频道观看入口。",
-      "summary_short": "总台节目与频道观看入口",
-      "tags": ["官方", "电视", "中文"],
+      "summary": "主打海外影视剧资源的在线影视站。",
+      "summary_short": "海外影视剧资源聚合站",
+      "tags": ["在线影视", "海外剧", "中文"],
       "access": {
         "requires_login": false,
-        "free_level": "mostly_free",
-        "regions": ["CN"]
-      },
-      "scores": {
-        "more": 3.5,
-        "speed": 4.5,
-        "clean": 4.0,
-        "stable": 4.8,
-        "ease": 4.2
-      },
-      "risks": {
-        "copyright": "low",
-        "safety": "low",
-        "privacy": "medium",
-        "payment": "low"
-      },
-      "verification": {
-        "status": "recommended",
-        "last_checked": "2026-06-06",
-        "method": "manual",
-        "notes": "主页与节目入口可访问；部分内容可能受地区或播出许可限制。"
-      },
-      "source": {
-        "submitted_by": "maintainer",
-        "added_at": "2026-06-06"
-      },
-      "featured": true
-    },
-    {
-      "id": "1905-vod",
-      "name": "1905 电影网",
-      "url": "https://www.1905.com/vod/",
-      "category": "online_video",
-      "summary": "电影频道旗下的正版电影内容与影视资讯平台。",
-      "summary_short": "正版电影内容与影视资讯",
-      "tags": ["官方", "电影", "中文"],
-      "access": {
-        "requires_login": false,
-        "free_level": "partly_free",
-        "regions": ["CN"]
-      },
-      "scores": {
-        "more": 3.8,
-        "speed": 4.2,
-        "clean": 3.5,
-        "stable": 4.5,
-        "ease": 4.0
-      },
-      "risks": {
-        "copyright": "low",
-        "safety": "low",
-        "privacy": "medium",
-        "payment": "low"
-      },
-      "verification": {
-        "status": "recommended",
-        "last_checked": "2026-06-06",
-        "method": "manual",
-        "notes": "主页可访问；免费与会员内容并存。"
-      },
-      "source": {
-        "submitted_by": "maintainer",
-        "added_at": "2026-06-06"
-      },
-      "featured": true
-    },
-    {
-      "id": "internet-archive-movies",
-      "name": "Internet Archive Movies",
-      "url": "https://archive.org/details/movies",
-      "category": "online_video",
-      "summary": "Internet Archive 的电影与视频资料集合，包含公共领域和用户上传内容。",
-      "summary_short": "公共领域与用户上传视频资料",
-      "tags": ["公共领域", "历史影像", "英文"],
-      "access": {
-        "requires_login": false,
-        "free_level": "free",
+        "free_level": "unknown",
         "regions": ["GLOBAL"]
       },
       "scores": {
-        "more": 4.2,
-        "speed": 3.0,
-        "clean": 4.8,
-        "stable": 4.6,
-        "ease": 3.5
+        "more": 4.0,
+        "speed": 4.0,
+        "clean": 4.0,
+        "stable": 4.0,
+        "ease": 4.0
       },
       "risks": {
-        "copyright": "medium",
-        "safety": "low",
-        "privacy": "low",
-        "payment": "low"
+        "copyright": "high",
+        "safety": "medium",
+        "privacy": "unknown",
+        "payment": "unknown"
       },
       "verification": {
-        "status": "recommended",
-        "last_checked": "2026-06-06",
+        "status": "caution",
+        "last_checked": "2026-06-13",
         "method": "manual",
-        "notes": "集合页可访问；用户上传内容的授权状态需要逐项判断。"
+        "notes": "用户推荐资源，主打海外影视剧资源；内容来源、版权状态与站点安全性需要持续观察。"
       },
       "source": {
         "submitted_by": "maintainer",
-        "added_at": "2026-06-06"
+        "added_at": "2026-06-13"
       },
       "featured": true
     },
