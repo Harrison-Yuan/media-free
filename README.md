@@ -627,12 +627,12 @@ _等待首条通过验证的精选资源。你可以 [推荐一个资源](https:
 
 ## Star History
 
-<a href="https://www.star-history.com/#laoma2053/awesome-zhuiju-free&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=laoma2053/awesome-zhuiju-free&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=laoma2053/awesome-zhuiju-free&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=laoma2053/awesome-zhuiju-free&type=Date" />
-  </picture>
+<a href="https://www.star-history.com/?repos=laoma2053%2Fawesome-zhuiju-free&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=laoma2053/awesome-zhuiju-free&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=laoma2053/awesome-zhuiju-free&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=laoma2053/awesome-zhuiju-free&type=date&legend=top-left" />
+ </picture>
 </a>
 
 ---
