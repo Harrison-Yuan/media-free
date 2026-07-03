@@ -132,7 +132,16 @@
         "lao-liu-bei",
         "jun-lao",
         "xiao-ma",
-        "more-tvbox-config-addresses"
+        "mo-yu-er",
+        "wang-er-xiao",
+        "xiao-he-zi-4k",
+        "xiao-he-zi-single",
+        "vox",
+        "ao-wu",
+        "xiao-he-zi-multi",
+        "shi-guang-multi",
+        "ting-hao-share-multi",
+        "xiao-he-zi"
       ],
       "checked_at": "2026-07-04",
       "checked_by": "maintainer",
@@ -142,7 +151,7 @@
         "network": "user submitted"
       },
       "result": "pending_review",
-      "notes": "用户提交影视仓配置地址：饭太硬、肥猫、老刘备、俊佬、小马，以及影视仓播放源配置地址收集页“更多地址”。前 5 条资源名在 README 中不做超链接，配置地址放在简介列以代码样式展示，方便用户复制；“更多地址”作为收集页保留资源名超链接和文字简介；后续由 GitHub Actions 自动检测可用性。"
+      "notes": "用户提交影视仓配置地址：饭太硬、肥猫、老刘备、俊佬、小马、摸鱼儿、王二小、小盒子4K、小盒子单仓、VOX、嗷呜、小盒子多仓、拾光多仓、挺好分享多仓，以及 TV 工具箱“小盒子”。配置地址在 README 地址列以代码样式展示，方便用户复制；带官网的资源名保留超链接；后续由 GitHub Actions 自动检测可用性。"
     }
   ]
 }

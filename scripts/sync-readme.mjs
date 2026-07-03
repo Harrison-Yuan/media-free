@@ -130,6 +130,7 @@ function sortFeaturedResources(resources) {
 }
 
 function tableFor(resources, availabilityById, options = {}) {
+  const summaryHeading = options.summaryHeading ?? "简介";
   const rows = resources
     .map((resource) => {
       const availability = availabilityById.get(resource.id);
@@ -143,7 +144,7 @@ function tableFor(resources, availabilityById, options = {}) {
           : options.showUrlInSummary;
       const nameCell = plainName
         ? escapeHtml(resource.name)
-        : `<a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(resource.name)}</a>`;
+        : `<a href="${escapeHtml(resource.link_url ?? resource.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(resource.name)}</a>`;
       const summaryCell = showUrlInSummary
         ? `<code>${breakableCode(resource.url)}</code>`
         : escapeHtml(shortSummary(resource));
@@ -163,7 +164,7 @@ function tableFor(resources, availabilityById, options = {}) {
   <thead>
     <tr>
       <th width="20%" nowrap>资源</th>
-      <th width="30%" nowrap>简介</th>
+      <th width="30%" nowrap>${summaryHeading}</th>
       <th width="20%" nowrap>推荐指数</th>
       <th width="15%" nowrap>状&#8288;态</th>
       <th width="15%" nowrap>检测时间</th>
@@ -214,10 +215,11 @@ function categorySection(category, resources, availabilityById) {
       category.id === "open_source"
         ? openSourceTableFor(categoryResources)
         : tableFor(categoryResources, availabilityById, {
+            summaryHeading: category.id === "tvbox_config" ? "地址" : "简介",
             plainName: (resource) =>
-              category.id === "tvbox_config" && resource.id !== "more-tvbox-config-addresses",
+              category.id === "tvbox_config" && !resource.link_url,
             showUrlInSummary: (resource) =>
-              category.id === "tvbox_config" && resource.id !== "more-tvbox-config-addresses"
+              category.id === "tvbox_config" && resource.summary_short === "影视仓配置地址"
           });
   } else {
     content =

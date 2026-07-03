@@ -86,6 +86,12 @@ for (const [index, resource] of (resourcesData?.resources ?? []).entries()) {
     );
   }
   check(typeof resource.name === "string" && resource.name.length > 0, `${path}.name: required`);
+  if (resource.link_url !== undefined) {
+    check(
+      typeof resource.link_url === "string" && /^https?:\/\//.test(resource.link_url),
+      `${path}.link_url: expected HTTP or HTTPS URL`
+    );
+  }
   if (resource.category === "tvbox_config") {
     check(
       typeof resource.url === "string" && /^https?:\/\//.test(resource.url),
