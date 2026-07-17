@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-12",
+  "updated_at": "2026-07-18",
   "records": [
     {
       "id": "verify-20260606-initial",
@@ -346,6 +346,21 @@
       },
       "result": "pending_review",
       "notes": "根据用户补充收录在线影视资源：布布追剧（https://bubuzhuiju.com，推荐指数 4 星，简介：速度快，有广告能接受）和影猫仓库（https://www.ymck.pro，推荐指数 4 星，简介：热门影视剧，有广告能接受）；提交状态不作为本项目状态依据，后续由 GitHub Actions 自动检测可用性，并持续观察版权状态与站点安全性。"
+    },
+    {
+      "id": "verify-20260718-auete-url-update",
+      "resource_ids": [
+        "auete-video"
+      ],
+      "checked_at": "2026-07-18",
+      "checked_by": "maintainer",
+      "method": "manual",
+      "environment": {
+        "region": "unspecified",
+        "network": "user submitted"
+      },
+      "result": "pending_review",
+      "notes": "根据用户补充将 Auete影视访问地址从 https://au1080.com 更新为 https://www.aeete.com；后续由 GitHub Actions 自动检测可用性，并持续观察版权状态与站点安全性。"
     }
   ]
 }
