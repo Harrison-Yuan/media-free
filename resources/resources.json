@@ -539,8 +539,8 @@
       "name": "爱壹帆",
       "url": "https://iyf.tv",
       "category": "online_video",
-      "summary": "面向海外华人的影视站，访问可能需要代理网络。",
-      "summary_short": "面向海外华人的影视站（需梯子）",
+      "summary": "海外华人影视站（需梯子/有VIP限制）。",
+      "summary_short": "海外华人影视站（需梯子/有VIP限制）",
       "tags": [
         "在线影视",
         "海外华人",
@@ -554,11 +554,11 @@
         ]
       },
       "scores": {
-        "more": 5,
-        "speed": 5,
-        "clean": 5,
-        "stable": 5,
-        "ease": 5
+        "more": 4,
+        "speed": 4,
+        "clean": 4,
+        "stable": 4,
+        "ease": 4
       },
       "risks": {
         "copyright": "high",
@@ -568,9 +568,9 @@
       },
       "verification": {
         "status": "caution",
-        "last_checked": "2026-06-19",
+        "last_checked": "2026-07-18",
         "method": "manual",
-        "notes": "根据截图信息收录：推荐指数 5 星，测评备注为面向海外华人的影视站，需梯子；截图状态不作为本项目状态依据，后续需要补充访问速度、广告干扰、版权和安全风险验证。"
+        "notes": "根据用户补充更新：推荐指数调整为 4 星，简介为海外华人影视站（需梯子/有VIP限制）；后续由自动检测刷新可访问状态。"
       },
       "source": {
         "submitted_by": "maintainer",
@@ -847,8 +847,8 @@
       "name": "奈菲影视",
       "url": "https://www.nfyingshi.com",
       "category": "online_video",
-      "summary": "热门美剧资源，更新较快，无广告（需梯子）。",
-      "summary_short": "热门美剧，更新快无广告（需梯子）",
+      "summary": "热门美剧（需梯子/有VIP限制）。",
+      "summary_short": "热门美剧（需梯子/有VIP限制）",
       "tags": [
         "在线影视",
         "美剧",
@@ -862,11 +862,11 @@
         ]
       },
       "scores": {
-        "more": 5,
-        "speed": 5,
-        "clean": 5,
-        "stable": 5,
-        "ease": 5
+        "more": 3,
+        "speed": 3,
+        "clean": 3,
+        "stable": 3,
+        "ease": 3
       },
       "risks": {
         "copyright": "high",
@@ -876,9 +876,9 @@
       },
       "verification": {
         "status": "caution",
-        "last_checked": "2026-07-04",
+        "last_checked": "2026-07-18",
         "method": "manual",
-        "notes": "根据截图信息收录：推荐指数 5 星，测评备注为热门美剧，更新快无广告（需梯子）；截图状态不作为本项目状态依据，后续由自动检测刷新可访问状态。"
+        "notes": "根据用户补充更新：推荐指数调整为 3 星，简介为热门美剧（需梯子/有VIP限制）；后续由自动检测刷新可访问状态。"
       },
       "source": {
         "submitted_by": "maintainer",
