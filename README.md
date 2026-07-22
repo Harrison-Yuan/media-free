@@ -54,19 +54,19 @@
 ## 截图
 
 <p align="center">
-  <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=A+macOS+desktop+screenshot+of+a+modern+video+search+app+%22%E8%BF%BD%E5%89%A7%22+showing+the+initial+discover+page+with+a+hero+section%2C+search+bar+in+the+center%2C+and+category+browse+buttons+%28%E7%94%B5%E5%BD%B1%2C+%E7%94%B5%E8%A7%86%E5%89%A7%2C+%E7%BB%BC%E8%89%BA%2C+%E5%8A%A8%E6%BC%AB%29+in+a+tidy+grid%2C+Apple-style+flat+design+with+white+background+and+blue+accents&image_size=landscape_16_9" width="100%" alt="发现页">
+  <img src="screenshots/discover.png" width="100%" alt="发现页">
   <br>
   <em>发现页 - 分类浏览与搜索入口</em>
 </p>
 
 <p align="center">
-  <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=A+macOS+desktop+screenshot+of+a+video+search+app+%22%E8%BF%BD%E5%89%A7%22+showing+search+results+for+%22%E6%98%9F%E8%BE%B0%E5%8F%98%22+with+a+grid+of+video+posters+displayed+in+card+layout%2C+each+card+showing+a+thumbnail+and+title%2C+Apple-style+minimalist+design+with+white+background&image_size=landscape_16_9" width="100%" alt="搜索结果页">
+  <img src="screenshots/search-results.png" width="100%" alt="搜索结果页">
   <br>
   <em>搜索结果 - 多源聚合展示</em>
 </p>
 
 <p align="center">
-  <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=A+macOS+desktop+screenshot+of+a+video+streaming+app+%22%E8%BF%BD%E5%89%A7%22+showing+the+video+detail+page+with+a+blurred+poster+background%2C+video+title%2C+episode+grid%2C+source+switching+tabs%2C+and+an+ArtPlayer+video+player+with+playback+controls%2C+Apple+HIG+inspired+design&image_size=landscape_16_9" width="100%" alt="详情与播放">
+  <img src="screenshots/detail.png" width="100%" alt="详情与播放">
   <br>
   <em>详情页与视频播放</em>
 </p>
