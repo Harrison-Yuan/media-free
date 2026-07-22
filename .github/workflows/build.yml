@@ -1,0 +1,176 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Frontend + Rust check ──────────────────────────────────────────
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: awesome-zhuiju-desktop/src-tauri
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: awesome-zhuiju-desktop/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: awesome-zhuiju-desktop/pnpm-lock.yaml
+
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev \
+            librsvg2-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+      - name: Install frontend deps
+        run: pnpm install
+        working-directory: awesome-zhuiju-desktop
+
+      - name: TypeScript check
+        run: pnpm tsc --noEmit
+        working-directory: awesome-zhuiju-desktop
+
+      - name: Rust check
+        run: cargo check
+        working-directory: awesome-zhuiju-desktop/src-tauri
+
+  # ── Build binaries ────────────────────────────────────────────────
+  build:
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: linux-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: macos-arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            suffix: macos-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: windows-x64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: awesome-zhuiju-desktop/src-tauri
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: awesome-zhuiju-desktop/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: awesome-zhuiju-desktop/pnpm-lock.yaml
+
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev \
+            librsvg2-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+      - name: Install frontend deps
+        run: pnpm install
+        working-directory: awesome-zhuiju-desktop
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v2
+        id: tauri_build
+        with:
+          projectPath: awesome-zhuiju-desktop
+          bundleIdentifier: com.bq-yuan.awesome-zhuiju-desktop
+          includeDebug: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: awesome-zhuiju-${{ matrix.suffix }}
+          path: ${{ steps.tauri_build.outputs.artifactPath }}/*
+          if-no-files-found: warn
+
+  # ── Release ────────────────────────────────────────────────────────
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: awesome-zhuiju-*
+          merge-multiple: true
+
+      - name: Generate release notes
+        run: |
+          echo "## 下载" > release-notes.md
+          echo "" >> release-notes.md
+          for f in *; do
+            if [ -f "$f" ]; then
+              size=$(du -h "$f" | cut -f1)
+              echo "- \`$f\` ($size)" >> release-notes.md
+            fi
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          files: |
+            awesome-zhuiju-*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}

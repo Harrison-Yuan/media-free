@@ -1,0 +1,29 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node
+node_modules/
+.pnpm-store/
+
+# Build output
+awesome-zhuiju-desktop/dist/
+awesome-zhuiju-desktop/src-tauri/target/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Tauri
+awesome-zhuiju-desktop/src-tauri/gen/
