@@ -135,7 +135,7 @@ pub const FALLBACK_EXTENDED: &[(i32, &str)] = &[
 // ─── 默认配置（用于未在 PER_SOURCE_CONFIGS 中列出的源） ─────────────────
 
 pub const DEFAULT_PAGE_SIZE_PARAM: &str = "pagesize";
-pub const DEFAULT_PAGE_SIZE: i32 = 12;
+pub const DEFAULT_PAGE_SIZE: i32 = 99;
 
 // ─── 按 URL 查找配置 ─────────────────────────────────────────────────────
 

@@ -46,17 +46,30 @@
 - **增量搜索** — 先到先返，首批结果毫秒级展示，后续源逐步追加
 - **源健康管理** — 自动检测源可用性，连续失败暂停查询，5分钟自动恢复
 - **Apple HIG 设计** — 遵循 Apple 人机界面指南，明亮优雅的界面风格
+- **本地代理绕过系统代理** — 内置 HTTP 代理直连视频 CDN，不受 VPN/Clash 代理影响
+- **虚拟网卡模式检测** — 自动检测 Clash TUN/Surge 模式并提示用户配置直连规则
+- **无限滚动** — 客户端分片加载，平滑滚动浏览全部结果
 - **跨平台** — 支持 macOS、Windows、Linux
 
 ## 截图
 
-<!-- 截图区域，后续替换为真实截图 -->
-```
-搜索页       详情页       播放器
-  ┌─┐        ┌─┐          ┌─┐
-  │ │        │ │          │ │
-  └─┘        └─┘          └─┘
-```
+<p align="center">
+  <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=A+macOS+desktop+screenshot+of+a+modern+video+search+app+%22%E8%BF%BD%E5%89%A7%22+showing+the+initial+discover+page+with+a+hero+section%2C+search+bar+in+the+center%2C+and+category+browse+buttons+%28%E7%94%B5%E5%BD%B1%2C+%E7%94%B5%E8%A7%86%E5%89%A7%2C+%E7%BB%BC%E8%89%BA%2C+%E5%8A%A8%E6%BC%AB%29+in+a+tidy+grid%2C+Apple-style+flat+design+with+white+background+and+blue+accents&image_size=landscape_16_9" width="100%" alt="发现页">
+  <br>
+  <em>发现页 - 分类浏览与搜索入口</em>
+</p>
+
+<p align="center">
+  <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=A+macOS+desktop+screenshot+of+a+video+search+app+%22%E8%BF%BD%E5%89%A7%22+showing+search+results+for+%22%E6%98%9F%E8%BE%B0%E5%8F%98%22+with+a+grid+of+video+posters+displayed+in+card+layout%2C+each+card+showing+a+thumbnail+and+title%2C+Apple-style+minimalist+design+with+white+background&image_size=landscape_16_9" width="100%" alt="搜索结果页">
+  <br>
+  <em>搜索结果 - 多源聚合展示</em>
+</p>
+
+<p align="center">
+  <img src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=A+macOS+desktop+screenshot+of+a+video+streaming+app+%22%E8%BF%BD%E5%89%A7%22+showing+the+video+detail+page+with+a+blurred+poster+background%2C+video+title%2C+episode+grid%2C+source+switching+tabs%2C+and+an+ArtPlayer+video+player+with+playback+controls%2C+Apple+HIG+inspired+design&image_size=landscape_16_9" width="100%" alt="详情与播放">
+  <br>
+  <em>详情页与视频播放</em>
+</p>
 
 ## 快速开始
 
@@ -122,7 +135,8 @@ sudo apt-get install -y \
 │  │           │  │          │  │              │  │
 │  │  Sources  │  │  Search  │  │  多码率自适应 │  │
 │  │  Priority │  │  Detail  │  │  弹幕同步    │  │
-│  │  Health   │  │  Browse  │  │  降级兜底    │  │
+│  │  Health   │  │  Browse  │  │  no_proxy    │  │
+│  │  Proxy*   │  │  Scroll  │  │  代理直连    │  │
 │  └─────┬─────┘  └────┬─────┘  └──────────────┘  │
 └────────┼─────────────┼──────────────────────────┘
          │             │
@@ -131,6 +145,8 @@ sudo apt-get install -y \
     │  量子 · 非凡 · 红牛    │
     │  短剧 · TVBox 发现    │
     └───────────────────────┘
+    ▲ *Proxy with no_proxy()
+    └── 绕过系统代理直连 CDN
 ```
 
 ### 数据流
@@ -172,22 +188,44 @@ sudo apt-get install -y \
 ## 常见问题
 
 <details>
+<summary><strong>视频播放失败？</strong></summary>
+
+播放器有三层保障：
+1. **hls.js 播放**（首选，支持多码率自适应）
+2. **本地代理绕过系统代理** — 请求直连 CDN，不受 VPN/Clash HTTP 代理影响
+3. **虚拟网卡模式检测** — 检测到 Clash TUN/Surge 等虚拟网卡代理时提示用户
+
+如果仍然失败，尝试：
+- 关闭系统代理/VPN
+- 切换其他视频来源（m3u8 源优先）
+- 在代理客户端中将视频 CDN 域名加入直连/绕过规则
+</details>
+
+<details>
 <summary><strong>搜索不到结果怎么办？</strong></summary>
 
 - 尝试更短的关键词
 - 检查网络连接（部分资源站需要直连）
 - 使用分类浏览代替关键词搜索
+- 应用会自动检测源健康状态，失败源 5 分钟后自动恢复
 </details>
 
 <details>
-<summary><strong>视频播放失败？</strong></summary>
+<summary><strong>为什么详情页只有少数几个源？</strong></summary>
 
-播放器有三级降级机制：
-1. hls.js 播放（首选）
-2. Safari 原生 HLS 降级
-3. iframe 嵌入降级
+详情页会聚合所有可用源的同名视频。如果发现源较少：
+- 跨源标题匹配已优化（支持去空格、去标点、全角转半角）
+- 非 m3u8 的 HTML 分享源已过滤，仅保留可播放的 m3u8 源
+- 各源数据返回需要时间，稍等后台聚合完成即可
+</details>
 
-如果仍然失败，可能是资源站的播放链接已失效，尝试切换其他来源。
+<details>
+<summary><strong>无限滚动不加载新内容？</strong></summary>
+
+搜索结果一次性拉取后，前端按每页 20 条分片展示：
+- 后端已配置每页最多 99 条，确保尽可能多的结果
+- 滚动到底部自动展示下一批
+- 增量推送的新数据到达后，继续滚动即可查看
 </details>
 
 <details>

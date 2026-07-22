@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { searchVideo, getVideoDetail } from "./lib/api";
 import { toast, ToastContainer } from "./components/Toast";
@@ -9,6 +9,8 @@ import type { VideoItem, VideoDetail, SearchUpdateEvent } from "./types";
 import { mergeSearchResults } from "./lib/utils";
 import "./App.css";
 
+const PAGE_SIZE = 20;
+
 function AppInner() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<VideoItem[]>([]);
@@ -17,37 +19,37 @@ function AppInner() {
   const [sourcesTotal, setSourcesTotal] = useState(0);
   const [sourcesResponding, setSourcesResponding] = useState(0);
   const [currentTypeId, setCurrentTypeId] = useState<number | undefined>();
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const [detail, setDetail] = useState<VideoDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
 
-  const doSearch = useCallback(
-    async (q: string, typeId?: number, page?: number) => {
-      const keyword = q.trim();
-      if (!keyword && typeId === undefined) return;
-      setSearching(true);
-      setSearched(true);
-      setDetail(null);
-      setPlaying(null);
-      setCurrentTypeId(typeId);
-      setCurrentPage(page ?? 1);
-      try {
-        const r = await searchVideo(keyword, typeId, page);
-        setResults(r.items);
-        setSourcesTotal(r.sources_total);
-        setSourcesResponding(r.sources_responding);
-      } catch {
-        setResults([]);
-        setSourcesTotal(0);
-        setSourcesResponding(0);
-        toast("搜索失败", "error");
-      } finally {
-        setSearching(false);
-      }
-    },
-    [],
-  );
+  const doSearch = useCallback(async (q: string, typeId?: number) => {
+    const keyword = q.trim();
+    if (!keyword && typeId === undefined) return;
+    setSearching(true);
+    setSearched(true);
+    setDetail(null);
+    setPlaying(null);
+    setCurrentTypeId(typeId);
+    setDisplayCount(PAGE_SIZE);
+    try {
+      const r = await searchVideo(keyword, typeId, 1);
+      setResults(r.items);
+      setSourcesTotal(r.sources_total);
+      setSourcesResponding(r.sources_responding);
+    } catch {
+      setResults([]);
+      setSourcesTotal(0);
+      setSourcesResponding(0);
+      toast("搜索失败", "error");
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const displayedResults = results.slice(0, displayCount);
+  const hasMore = displayCount < results.length;
 
   const openDetail = useCallback(async (item: VideoItem) => {
     setPlaying(null);
@@ -109,15 +111,17 @@ function AppInner() {
     setSearched(false);
     setSearching(false);
     setCurrentTypeId(undefined);
-    setCurrentPage(1);
+    setDisplayCount(PAGE_SIZE);
   }, []);
 
-  const handleChangePage = useCallback(
-    (page: number) => {
-      doSearch(query, currentTypeId, page);
-    },
-    [doSearch, query, currentTypeId],
-  );
+  const loadingRef = useRef(false);
+
+  const loadMore = useCallback(() => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, results.length));
+    loadingRef.current = false;
+  }, [results.length]);
 
   // ── Detail view ──
   if (detailLoading) {
@@ -172,13 +176,13 @@ function AppInner() {
         onHome={handleHome}
         searching={searching}
         searched={searched}
-        results={results}
+        results={displayedResults}
         sourcesTotal={sourcesTotal}
         sourcesResponding={sourcesResponding}
         currentTypeId={currentTypeId}
-        currentPage={currentPage}
         onSelectItem={openDetail}
-        onChangePage={handleChangePage}
+        loadMore={loadMore}
+        hasMore={hasMore}
       />
       <ToastContainer />
     </>

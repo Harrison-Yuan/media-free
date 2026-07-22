@@ -7,7 +7,7 @@ import { posterFallbackStyle } from "../lib/utils";
 interface Props {
   query: string;
   onQueryChange: (q: string) => void;
-  onSearch: (q: string, typeId?: number, page?: number) => void;
+  onSearch: (q: string, typeId?: number) => void;
   onHome: () => void;
   searching: boolean;
   searched: boolean;
@@ -15,9 +15,9 @@ interface Props {
   sourcesTotal: number;
   sourcesResponding: number;
   currentTypeId?: number;
-  currentPage: number;
   onSelectItem: (item: VideoItem) => void;
-  onChangePage: (page: number) => void;
+  loadMore: () => void;
+  hasMore: boolean;
 }
 
 // ─── Search Input ──────────────────────────────────────────────────────
@@ -99,11 +99,26 @@ export function SearchView({
   sourcesTotal,
   sourcesResponding,
   currentTypeId,
-  currentPage,
   onSelectItem,
-  onChangePage,
+  loadMore,
+  hasMore,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // ── Infinite scroll: 当 sentinel 进入可视区域时加载下一页 ──
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) loadMore();
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   // ── Initial state (no search, no browse) ──
   if (!searched && !searching && !currentTypeId) {
@@ -357,80 +372,36 @@ export function SearchView({
             </div>
           )}
 
-          {/* ── Pagination ── */}
+          {/* ── Infinite scroll sentinel ── */}
           {results.length > 0 && (
-            <div className="mt-10 flex items-center justify-center gap-2 pb-8">
-              <button
-                onClick={() => onChangePage(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-                className="flex h-9 items-center gap-1 rounded-xl border px-3 text-[13px] font-medium transition-all duration-200 hover:shadow-sm active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
-                style={{
-                  borderColor: "var(--border)",
-                  color: "var(--foreground)",
-                  background: "var(--card)",
-                }}
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            <div
+              ref={sentinelRef}
+              className="mt-8 flex items-center justify-center pb-12"
+            >
+              {searching ? (
+                <div
+                  className="flex items-center gap-2 text-[13px]"
+                  style={{ color: "var(--text-tertiary)" }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
+                  <span
+                    className="inline-flex h-2 w-2 animate-pulse rounded-full"
+                    style={{ background: "var(--primary)" }}
                   />
-                </svg>
-                上一页
-              </button>
-
-              {[currentPage - 1, currentPage, currentPage + 1]
-                .filter((p) => p >= 1)
-                .slice(0, 5)
-                .map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => onChangePage(p)}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-[13px] font-semibold transition-all duration-200 active:scale-[0.95]"
-                    style={{
-                      background:
-                        p === currentPage ? "var(--primary)" : "transparent",
-                      color:
-                        p === currentPage
-                          ? "var(--primary-foreground)"
-                          : "var(--text-secondary)",
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-
-              <button
-                onClick={() => onChangePage(currentPage + 1)}
-                className="flex h-9 items-center gap-1 rounded-xl border px-3 text-[13px] font-medium transition-all duration-200 hover:shadow-sm active:scale-[0.97]"
-                style={{
-                  borderColor: "var(--border)",
-                  color: "var(--foreground)",
-                  background: "var(--card)",
-                }}
-              >
-                下一页
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  加载更多...
+                </div>
+              ) : hasMore ? (
+                <span
+                  className="text-[12px]"
+                  style={{ color: "var(--text-tertiary)" }}
+                />
+              ) : (
+                <span
+                  className="text-[12px]"
+                  style={{ color: "var(--text-tertiary)" }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
+                  已显示全部 {results.length} 条结果
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -579,7 +550,7 @@ function InitialState({
               {categories.map((cat) => (
                 <button
                   key={cat.type_id}
-                  onClick={() => onSearch("", cat.type_id, 1)}
+                  onClick={() => onSearch("", cat.type_id)}
                   className="group rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
                   style={{
                     background: "var(--card)",
