@@ -1,0 +1,473 @@
+/* ═══════════════════════════════════════════════════════════════
+   BENTO DESIGN SYSTEM v1.0
+   Inspired by Linear, Notion, and Apple TV+
+   ═══════════════════════════════════════════════════════════════ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────
+   CUSTOM FONTS - Inter Tight + SF Pro Display feel
+   ───────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;450;500;550;600;700&display=swap');
+
+/* ─────────────────────────────────────────────────────────────
+   CSS VARIABLES - Bento Color System
+   ───────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    /* ═══ Background Scale ═══ */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f7f7f8;
+    --bg-tertiary: #f0f0f2;
+    --bg-elevated: #ffffff;
+
+    /* ═══ Content Scale ═══ */
+    --text-primary: #111113;
+    --text-secondary: #6e6e7a;
+    --text-tertiary: #a1a1aa;
+    --text-muted: #d4d4d8;
+
+    /* ═══ Brand Accents (Bento Blue) ═══ */
+    --accent-primary: #3b82f6;
+    --accent-secondary: #60a5fa;
+    --accent-tertiary: #dbeafe;
+    --accent-hover: #2563eb;
+
+    /* ═══ Functional Colors ═══ */
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --destructive: #ef4444;
+    --info: #06b6d4;
+
+    /* ═══ Border & Divider ═══ */
+    --border-light: #e4e4e7;
+    --border-medium: #d1d1d6;
+    --border-strong: #a1a1aa;
+    --divider: rgba(0, 0, 0, 0.06);
+
+    /* ═══ Shadow Scale (Soft & Layered) ═══ */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+    --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+
+    /* ═══ Bento Grid Specific ═══ */
+    --bento-gap: 16px;
+    --bento-radius-sm: 12px;
+    --bento-radius-md: 16px;
+    --bento-radius-lg: 24px;
+    --bento-radius-xl: 32px;
+
+    /* ═══ Animation Timings ═══ */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-spring: cubic-bezier(0.34, 1.8, 0.64, 1);
+
+    /* ═══ Spacing Scale ═══ */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+    --space-24: 96px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+@layer base {
+  * {
+    @apply border-border-light;
+  }
+
+  html {
+    font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    overflow-x: hidden;
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--accent-tertiary);
+    color: var(--accent-primary);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-medium);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+
+  /* Images */
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BENTO COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+@layer components {
+  /* ─── Bento Cards ─── */
+  .bento-card {
+    @apply relative overflow-hidden;
+    background: var(--bg-elevated);
+    border-radius: var(--bento-radius-md);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s var(--ease-out-expo);
+  }
+
+  .bento-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-medium);
+  }
+
+  .bento-card:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .bento-card-glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  /* ─── Bento Grid ─── */
+  .bento-grid {
+    display: grid;
+    gap: var(--bento-gap);
+  }
+
+  .bento-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bento-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bento-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* ─── Typography ─── */
+  .text-display {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .text-headline {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .text-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .text-body {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .text-caption {
+    font-size: 13px;
+    font-weight: 450;
+    line-height: 1.4;
+  }
+
+  .text-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ─── Interactive States ─── */
+  .hover-lift {
+    transition: transform 0.25s var(--ease-out-back), box-shadow 0.25s var(--ease-out-expo);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .press-scale {
+    transition: transform 0.1s var(--ease-out-quart);
+  }
+
+  .press-scale:active {
+    transform: scale(0.96);
+  }
+
+  /* ─── Skeleton Loading ─── */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--bg-secondary) 0%,
+      var(--bg-tertiary) 50%,
+      var(--bg-secondary) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ─── Glass Morphism ─── */
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+
+  .glass-dark {
+    background: rgba(17, 17, 19, 0.65);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+@layer utilities {
+  /* ─── Fade Animations ─── */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in-scale {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ─── Slide Animations ─── */
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-bottom {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ─── Pulse & Glow ─── */
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px rgba(59, 130, 246, 0.5);
+    }
+  }
+
+  /* ─── Stagger Animation Classes ─── */
+  .animate-fade-in {
+    animation: fade-in 0.4s var(--ease-out-expo) forwards;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s var(--ease-out-expo) forwards;
+  }
+
+  .animate-fade-in-scale {
+    animation: fade-in-scale 0.4s var(--ease-out-back) forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.5s var(--ease-out-expo) forwards;
+  }
+
+  /* ─── Stagger Delays ─── */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
+  .stagger-7 { animation-delay: 350ms; }
+  .stagger-8 { animation-delay: 400ms; }
+
+  /* ─── Line Clamp ─── */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHADCN OVERRIDES - Bento Style
+   ═══════════════════════════════════════════════════════════════ */
+@layer components {
+  /* Button Bento Style */
+  .btn-bento {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-[14px] transition-all duration-200;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+  }
+
+  .btn-bento-primary {
+    @apply btn-bento bg-accent-primary text-white hover:bg-accent-hover shadow-sm hover:shadow-md;
+    @apply active:scale-[0.98] active:shadow-sm;
+  }
+
+  .btn-bento-secondary {
+    @apply btn-bento bg-bg-secondary text-text-primary hover:bg-bg-tertiary;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-bento-ghost {
+    @apply btn-bento bg-transparent text-text-secondary hover:text-text-primary hover:bg-bg-secondary;
+    @apply active:scale-[0.98];
+  }
+
+  /* Input Bento Style */
+  .input-bento {
+    @apply w-full px-4 py-3 rounded-xl bg-bg-secondary border border-transparent;
+    @apply text-text-primary placeholder:text-text-tertiary;
+    @apply transition-all duration-200 focus:outline-none;
+    @apply focus:bg-bg-primary focus:border-border-medium;
+    @apply hover:border-border-light;
+  }
+
+  /* Badge Bento Style */
+  .badge-bento {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium;
+    @apply transition-colors duration-200;
+  }
+
+  .badge-bento-primary {
+    @apply badge-bento bg-accent-tertiary text-accent-primary;
+  }
+
+  .badge-bento-secondary {
+    @apply badge-bento bg-bg-secondary text-text-secondary;
+  }
+
+  /* Card Bento Style */
+  .card-bento {
+    @apply relative bg-bg-elevated rounded-2xl overflow-hidden;
+    @apply border border-border-light;
+    @apply transition-all duration-300;
+    @apply hover:border-border-medium hover:shadow-lg;
+    @apply active:scale-[0.995];
+  }
+}

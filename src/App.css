@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Light Vibrant Theme — shadcn/ui compatible
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── shadcn/ui tokens (Apple HIG inspired) ── */
+  --background: #f2f2f7;
+  --foreground: #1c1c1e;
+  --card: #ffffff;
+  --card-foreground: #1c1c1e;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1e;
+  --primary: #007aff;
+  --primary-foreground: #ffffff;
+  --secondary: #e8e8ed;
+  --secondary-foreground: #1c1c1e;
+  --muted: #e8e8ed;
+  --muted-foreground: #8e8e93;
+  --accent: #e8e8ed;
+  --accent-foreground: #1c1c1e;
+  --destructive: #ff3b30;
+  --destructive-foreground: #ffffff;
+  --destructive-bg: rgba(255, 59, 48, 0.12);
+  --border: rgba(60, 60, 67, 0.08);
+  --input: rgba(60, 60, 67, 0.08);
+  --ring: #007aff;
+  --radius: 0.625rem;
+
+  /* ── Apple System Colors ── */
+  --blue: #007aff;
+  --blue-bg: rgba(0, 122, 255, 0.08);
+  --blue-border: rgba(0, 122, 255, 0.2);
+  --blue-shadow: rgba(0, 122, 255, 0.12);
+  --purple: #5856d6;
+  --pink: #ff2d55;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --yellow: #ffcc00;
+  --green: #34c759;
+  --teal: #5ac8fa;
+  --indigo: #5856d6;
+
+  /* ── Apple Vibrant Gradients ── */
+  --gradient-hero: linear-gradient(135deg, #007aff 0%, #5856d6 50%, #ff2d55 100%);
+  --gradient-card: linear-gradient(135deg, rgba(0,122,255,0.06), rgba(88,86,214,0.06));
+  --gradient-logo: linear-gradient(135deg, #007aff, #5856d6);
+  --gradient-active-tab: linear-gradient(135deg, rgba(0,122,255,0.12), rgba(88,86,214,0.12));
+
+  /* component utility aliases */
+  --bg: var(--background);
+  --card-bg: var(--card);
+  --card-hover: var(--secondary);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-tertiary: #aeaeb2;
+  --text-quaternary: #c7c7cc;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Base
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+* { margin: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Scrollbar
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.08); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.15); }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fadeIn 0.2s ease-out both; }
+.animate-fade-in { animation: fadeIn 0.35s ease-out both; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-enter { animation: cardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in { animation: scaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-out infinite;
+}
