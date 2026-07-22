@@ -1,15 +1,20 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// 本地视频代理：为非 m3u8 URL 添加 Referer/Origin 头
+// 本地视频代理：为所有视频请求绕过系统代理，直连 CDN
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// 问题：<video> 元素发起的 HTTP 请求无法自定义 Referer 头，
-//       部分 CDN 因此拒绝非 m3u8 视频请求。
-// 方案：本地启动 HTTP 代理，前端视频 URL 指向此代理，
-//       代理用 reqwest（可设自定义头）获取视频并流式转发。
+// 问题：hls.js（浏览器 XHR）发起的请求会跟随系统代理（VPN/Clash 等），
+//       导致视频 CDN 请求从境外 IP 发出而被拦截。
+// 方案：本地启动 HTTP 代理，前端所有视频请求指向此代理，
+//       代理用 reqwest（配置 no_proxy）获取视频并流式转发。
+//
+// 关键能力：
+//   - /proxy?url=U&ref=R  标准代理（支持 Referer）
+//   - 自动重写 m3u8 清单中的相对路径为绝对 CDN URL，确保 hls.js 能正确解析
 
 use std::sync::OnceLock;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
+use url::Url;
 
 /// 代理端口（应用启动时初始化）
 static PROXY_PORT: OnceLock<u16> = OnceLock::new();
@@ -19,8 +24,8 @@ pub fn get_proxy_port() -> Option<u16> {
     PROXY_PORT.get().copied()
 }
 
-/// 将视频 URL 转为本地代理 URL（仅对非 m3u8 URL 有效）
-pub fn to_proxy_url(video_url: &str, referer: &str) -> String {
+/// 构建代理 URL（用于前端传递视频 URL 给代理）
+pub fn make_proxy_url(video_url: &str, referer: &str) -> String {
     let port = PROXY_PORT.get().copied().unwrap_or(0);
     if port == 0 {
         return video_url.to_string();
@@ -115,8 +120,9 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
         }
     }
 
-    // 用 reqwest 获取视频（带自定义头，长超时）
+    // ── 用 reqwest（no_proxy 绕过系统代理）获取视频 ──
     let client = reqwest::Client::builder()
+        .no_proxy()
         .timeout(std::time::Duration::from_secs(300))
         .http1_only()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
@@ -124,7 +130,7 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
         .build()
         .map_err(|e| eprintln!("[proxy] client build: {}", e))
         .ok()
-        .unwrap_or_else(|| reqwest::Client::new());
+        .unwrap_or_else(|| reqwest::Client::builder().no_proxy().build().unwrap());
 
     let resp = match client
         .get(&target_url)
@@ -140,6 +146,12 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
         }
     };
 
+    // 判断是否为 m3u8 内容（需重写相对路径为绝对路径）
+    let is_m3u8 = target_url.contains(".m3u8")
+        || resp.headers().get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .map_or(false, |ct| ct.contains("m3u8") || ct.contains("vnd.apple.mpegurl"));
+
     // 构建响应头
     let status_line = format!("HTTP/1.1 {} {}\r\n", resp.status().as_u16(),
         resp.status().canonical_reason().unwrap_or("Unknown"));
@@ -148,18 +160,17 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
     let content_type = resp.headers().get("content-type")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("application/octet-stream");
-    header.extend_from_slice(b"Content-Type: ");
-    header.extend_from_slice(content_type.as_bytes());
-    header.extend_from_slice(b"\r\n");
 
-    // Content-Length 如果有就透传
-    if let Some(cl) = resp.headers().get("content-length") {
-        header.extend_from_slice(b"Content-Length: ");
-        header.extend_from_slice(cl.as_bytes());
+    if is_m3u8 {
+        // m3u8 内容由我们重写后返回，Content-Type 固定
+        header.extend_from_slice(b"Content-Type: application/vnd.apple.mpegurl\r\n");
+    } else {
+        header.extend_from_slice(b"Content-Type: ");
+        header.extend_from_slice(content_type.as_bytes());
         header.extend_from_slice(b"\r\n");
     }
 
-    // CORS 头（允许任意来源）
+    // CORS 头
     header.extend_from_slice(b"Access-Control-Allow-Origin: *\r\n");
     header.extend_from_slice(b"Accept-Ranges: bytes\r\n");
     header.extend_from_slice(b"Connection: close\r\n\r\n");
@@ -169,7 +180,16 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
         return;
     }
 
-    // 流式转发响应体
+    // ── 如果是 m3u8 内容，重写相对路径为绝对路径 ──
+    if is_m3u8 {
+        if let Ok(bytes) = resp.bytes().await {
+            let rewritten = rewrite_m3u8_urls(&bytes, &target_url);
+            let _ = writer.write_all(rewritten.as_bytes()).await;
+        }
+        return;
+    }
+
+    // ── 非 m3u8：直接流式转发 ──
     use futures::StreamExt;
     let mut stream = resp.bytes_stream();
     loop {
@@ -183,6 +203,38 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
             _ => break,
         }
     }
+}
+
+/// 重写 m3u8 内容：将相对路径的 URI 替换为绝对 CDN URL
+///
+/// hls.js 的内部 URL 解析基于清单 URL（即我们的代理 URL），
+/// 相对路径会被解析到 `http://127.0.0.1:PORT/` 目录下而失效。
+/// 通过将所有相对路径转为绝对 CDN URL，hls.js 可以正确构建后续请求，
+/// 再经由自定义 Loader 路由到代理。
+fn rewrite_m3u8_urls(content: &[u8], cdn_url: &str) -> String {
+    let text = String::from_utf8_lossy(content);
+    let base = match Url::parse(cdn_url) {
+        Ok(u) => u,
+        Err(_) => return text.to_string(),
+    };
+
+    let mut out = String::with_capacity(text.len() + 512);
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            // 非 URI 行：直接保留
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        // URI 行：可能是相对路径，解析为绝对 CDN URL
+        match base.join(trimmed) {
+            Ok(abs) => out.push_str(abs.as_str()),
+            Err(_) => out.push_str(trimmed),
+        }
+        out.push('\n');
+    }
+    out
 }
 
 fn parse_query(query: &str) -> (Option<String>, Option<String>) {

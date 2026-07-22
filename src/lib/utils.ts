@@ -6,9 +6,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** 标题标准化：去空格、转小写，用于去重比较 */
+/** 标题标准化：去空格、转小写、去标点，用于去重比较 */
 export function normalizeTitle(title: string): string {
-  return title.replace(/\s+/g, "").toLowerCase();
+  return title
+    .replace(/\s+/g, "")
+    .replace(/[·•、，。：""《》「」『』（）()]/g, "")
+    .toLowerCase();
 }
 
 /** 合并增量搜索结果（去重：按 normalized title，保留先到者） */

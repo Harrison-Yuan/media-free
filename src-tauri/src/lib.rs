@@ -28,6 +28,72 @@ async fn get_proxy_port() -> u16 {
     proxy::get_proxy_port().unwrap_or(0)
 }
 
+/// 检测系统代理模式
+#[derive(serde::Serialize)]
+struct ProxyModeInfo {
+    /// true = 检测到虚拟网卡模式代理（如 Clash TUN/Surge/V2Ray TUN）
+    pub has_tun: bool,
+    /// true = 检测到 HTTP 环境变量代理
+    pub has_http_proxy: bool,
+}
+
+#[tauri::command]
+fn check_proxy_mode() -> ProxyModeInfo {
+    let has_http_proxy = std::env::var("HTTP_PROXY")
+        .or_else(|_| std::env::var("HTTPS_PROXY"))
+        .or_else(|_| std::env::var("http_proxy"))
+        .or_else(|_| std::env::var("https_proxy"))
+        .ok()
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+
+    let has_tun = std::process::Command::new("ifconfig")
+        .output()
+        .ok()
+        .map(|output| {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            #[cfg(target_os = "macos")]
+            {
+                // 检测有 IPv4 地址的 utun 接口（代理 TUN 激活的标志）
+                // 系统服务创建的 utun 通常只有 IPv6，代理才有 IPv4
+                let lines: Vec<&str> = stdout.lines().collect();
+                let mut i = 0;
+                while i < lines.len() {
+                    let line = lines[i];
+                    if line.starts_with("utun") && line.contains(": flags=") {
+                        // 查看此接口后续缩进行中是否有 IPv4 地址
+                        i += 1;
+                        while i < lines.len() {
+                            let next = lines[i];
+                            if !next.starts_with(' ') && !next.starts_with('\t') {
+                                break; // 下一个接口开始了
+                            }
+                            if next.trim_start().starts_with("inet ") {
+                                return true;
+                            }
+                            i += 1;
+                        }
+                        continue; // while 外层会再 i++
+                    }
+                    i += 1;
+                }
+                false
+            }
+            #[cfg(target_os = "linux")]
+            {
+                stdout.lines().filter(|l| l.starts_with("tun")).count() > 0
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+            {
+                let _ = stdout;
+                false
+            }
+        })
+        .unwrap_or(false);
+
+    ProxyModeInfo { has_tun, has_http_proxy }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 命令：源连通性检测
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -220,6 +286,7 @@ pub fn run() {
             detail::get_video_detail,
             detail::fetch_source_detail,
             get_proxy_port,
+            check_proxy_mode,
             check_sources,
             fetch_categories,
             fetch_danmaku,

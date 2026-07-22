@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import Artplayer from "artplayer";
 import type { Option } from "artplayer";
 import artplayerPluginDanmuku, { type Danmu } from "artplayer-plugin-danmuku";
 import Hls from "hls.js";
+import { getProxyPort } from "../lib/api";
 
 interface Props {
   url: string;
@@ -92,6 +93,18 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
   const epRef = useRef(episodeLabel);
   epRef.current = episodeLabel;
   const blobUrlRef = useRef<string | null>(null);
+  const [proxyPort, setProxyPort] = useState(0);
+  const [tunWarning, setTunWarning] = useState(false);
+
+  useEffect(() => {
+    getProxyPort().then(setProxyPort);
+    // 检测虚拟网卡模式代理
+    import("../lib/api").then(({ checkProxyMode }) =>
+      checkProxyMode().then((info) => {
+        if (info.has_tun) setTunWarning(true);
+      }),
+    );
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -142,7 +155,7 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
       fastForward: true,
       gesture: true,
       moreVideoAttr: { playsInline: true },
-      // ── HLS：hls.js + 自定义 Referer ──
+      // ── HLS：hls.js + 自定义 Referer + 绕过系统代理 ──
       ...(isHls
         ? {
             customType: {
@@ -152,13 +165,50 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
                 art: Artplayer,
               ) {
                 if (Hls.isSupported()) {
-                  const hls = new Hls({
+                  // 如果代理可用，用自定义 Loader 将所有请求路由到本地代理
+                  const proxyBase =
+                    proxyPort > 0
+                      ? `http://127.0.0.1:${proxyPort}/proxy?url=`
+                      : null;
+
+                  const hlsConfig: Record<string, any> = {
                     enableWorker: true,
-                    xhrSetup: (xhr) => {
+                    xhrSetup: (xhr: XMLHttpRequest) => {
                       xhr.setRequestHeader("Referer", ref);
                       xhr.setRequestHeader("Origin", ref.replace(/\/+$/, ""));
                     },
-                  });
+                  };
+
+                  if (proxyBase) {
+                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+                    const DefaultLoader = (Hls as any).DefaultConfig?.loader;
+                    if (DefaultLoader) {
+                      hlsConfig.loader = class HlsProxyLoader {
+                        private loader: any;
+                        constructor(config: any) {
+                          this.loader = new DefaultLoader(config);
+                        }
+                        load(context: any, cfg: any, callbacks: any) {
+                          if (!context.url.startsWith("http://127.0.0.1:")) {
+                            context.url =
+                              proxyBase + encodeURIComponent(context.url);
+                          }
+                          this.loader.load(context, cfg, callbacks);
+                        }
+                        abort() {
+                          this.loader.abort();
+                        }
+                        destroy() {
+                          this.loader.destroy();
+                        }
+                        get stats() {
+                          return this.loader.stats;
+                        }
+                      };
+                    }
+                  }
+
+                  const hls = new Hls(hlsConfig);
                   hls.loadSource(m3u8Url);
                   hls.attachMedia(video);
                   hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -289,5 +339,62 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, episodeLabel]);
 
-  return <div ref={containerRef} className="h-full w-full bg-black" />;
+  return (
+    <>
+      {tunWarning && (
+        <div
+          className="absolute left-0 right-0 top-0 z-50 flex items-center gap-3 px-4 py-2 text-[12px]"
+          style={{
+            background: "rgba(255,149,0,0.92)",
+            color: "white",
+          }}
+        >
+          <svg
+            className="h-4 w-4 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+            />
+          </svg>
+          <span className="flex-1 leading-relaxed">
+            检测到虚拟网卡模式代理（如 Clash TUN、Surge），可能影响视频加载。
+            请尝试
+            <span
+              className="font-semibold underline cursor-pointer"
+              onClick={() => setTunWarning(false)}
+            >
+              关闭代理
+            </span>
+            ， 或在代理客户端中将视频 CDN 域名加入「直连/绕过」规则。
+          </span>
+          <button
+            onClick={() => setTunWarning(false)}
+            className="shrink-0 rounded p-0.5 transition-colors hover:bg-white/20"
+            aria-label="关闭提示"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+      <div ref={containerRef} className="relative h-full w-full bg-black" />
+    </>
+  );
 }

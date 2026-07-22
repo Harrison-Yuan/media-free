@@ -76,3 +76,26 @@ export async function fetchSourceDetail(
     return [];
   }
 }
+
+/** 获取本地视频代理端口 */
+export async function getProxyPort(): Promise<number> {
+  try {
+    return await invoke<number>("get_proxy_port");
+  } catch {
+    return 0;
+  }
+}
+
+export interface ProxyModeInfo {
+  has_tun: boolean;
+  has_http_proxy: boolean;
+}
+
+/** 检测系统代理模式 */
+export async function checkProxyMode(): Promise<ProxyModeInfo> {
+  try {
+    return await invoke<ProxyModeInfo>("check_proxy_mode");
+  } catch {
+    return { has_tun: false, has_http_proxy: false };
+  }
+}

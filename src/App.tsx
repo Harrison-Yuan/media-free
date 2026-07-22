@@ -19,6 +19,7 @@ function AppInner() {
   const [currentTypeId, setCurrentTypeId] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [detail, setDetail] = useState<VideoDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
 
   const doSearch = useCallback(
@@ -49,35 +50,20 @@ function AppInner() {
   );
 
   const openDetail = useCallback(async (item: VideoItem) => {
-    // 从搜索结果直接构建详情，零额外 HTTP 等待
-    const detailFromSearch: VideoDetail = {
-      id: item.id,
-      title: item.title,
-      poster: item.poster,
-      description: item.description,
-      source_name: item.source.name,
-      episodes: item.episodes,
-      source_groups: item.source_groups,
-    };
-    setDetail(detailFromSearch);
     setPlaying(null);
+    setDetailLoading(true);
 
-    // 后台异步获取完整详情（含跨源聚合），不影响用户立即看到页面
     try {
       const d = await getVideoDetail(
         item.source.name,
         item.source.api_url,
         item.id,
       );
-      // 仅当用户没有切换到其他视频时更新
-      setDetail((prev) => {
-        if (prev?.id === item.id && prev?.source_name === item.source.name) {
-          return d;
-        }
-        return prev;
-      });
+      setDetail(d);
     } catch {
-      // 后台失败不提示，主源数据已可用
+      toast("详情加载失败，请重试", "error");
+    } finally {
+      setDetailLoading(false);
     }
   }, []);
 
@@ -134,6 +120,31 @@ function AppInner() {
   );
 
   // ── Detail view ──
+  if (detailLoading) {
+    return (
+      <div
+        className="flex h-screen w-screen items-center justify-center"
+        style={{ background: "var(--background)" }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+            style={{
+              borderColor: "var(--border)",
+              borderTopColor: "var(--primary)",
+            }}
+          />
+          <span
+            className="text-[13px]"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            加载详情中...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   if (detail) {
     return (
       <>
