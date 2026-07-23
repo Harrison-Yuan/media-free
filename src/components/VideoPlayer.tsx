@@ -93,6 +93,7 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
   const epRef = useRef(episodeLabel);
   epRef.current = episodeLabel;
   const blobUrlRef = useRef<string | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [proxyPort, setProxyPort] = useState(0);
   const [tunWarning, setTunWarning] = useState(false);
 
@@ -109,6 +110,12 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !url) return;
+
+    // 确保容器为空，防止重复初始化
+    container.innerHTML = "";
+
+    // 标记是否已销毁，防止闭包中的异步操作修改已销毁的实例
+    let destroyed = false;
 
     const ref = referer || domain(url);
     const isHls = isM3u8(url);
@@ -133,10 +140,13 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
       container,
       url,
       type: detectType(url),
+      lang: "zh-cn",
       theme: "#007aff",
       volume: 0.7,
       autoplay: true,
       autoSize: true,
+      autoMini: true,
+      backdrop: true,
       mutex: true,
       hotkey: true,
       pip: true,
@@ -154,7 +164,10 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
       lock: true,
       fastForward: true,
       gesture: true,
-      moreVideoAttr: { playsInline: true },
+      moreVideoAttr: {
+        playsInline: true,
+        disablePictureInPicture: false,
+      },
       // ── HLS：hls.js + 自定义 Referer + 绕过系统代理 ──
       ...(isHls
         ? {
@@ -164,6 +177,14 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
                 m3u8Url: string,
                 art: Artplayer,
               ) {
+                // 优先使用浏览器原生 HLS 支持（macOS WKWebView/Safari）
+                // 原生 HLS 无 MSE 音频 bug，pause 正常，无需代理
+                if (video.canPlayType("application/vnd.apple.mpegurl")) {
+                  video.src = m3u8Url;
+                  return;
+                }
+
+                // 无原生 HLS 时（Windows WebView2），使用 hls.js + 代理
                 if (Hls.isSupported()) {
                   // 如果代理可用，用自定义 Loader 将所有请求路由到本地代理
                   const proxyBase =
@@ -172,7 +193,9 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
                       : null;
 
                   const hlsConfig: Record<string, any> = {
-                    enableWorker: true,
+                    enableWorker: false,
+                    backbufferLength: 15,
+                    maxBufferLength: 30,
                     xhrSetup: (xhr: XMLHttpRequest) => {
                       xhr.setRequestHeader("Referer", ref);
                       xhr.setRequestHeader("Origin", ref.replace(/\/+$/, ""));
@@ -209,6 +232,7 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
                   }
 
                   const hls = new Hls(hlsConfig);
+                  hlsRef.current = hls;
                   hls.loadSource(m3u8Url);
                   hls.attachMedia(video);
                   hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -245,8 +269,6 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
                     }
                   });
                   art.on("destroy", () => hls.destroy());
-                } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-                  video.src = m3u8Url;
                 }
               },
             },
@@ -274,8 +296,40 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
       if (p) danmukuRef.current = p;
     });
 
+    // ── hls.js 暂停：停止加载 + 清除 MediaSource 缓冲 ──
+    art.on("pause", () => {
+      if (hlsRef.current) {
+        hlsRef.current.stopLoad();
+      }
+      const video = art.video;
+      if (video && !video.paused) {
+        video.pause();
+      }
+      if (hlsRef.current) {
+        try {
+          const ms = (hlsRef.current as any).mediaSource;
+          if (ms?.sourceBuffers) {
+            for (let i = 0; i < ms.sourceBuffers.length; i++) {
+              const sb = ms.sourceBuffers[i];
+              if (sb.buffered.length > 0) {
+                sb.abort();
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+    art.on("play", () => {
+      if (hlsRef.current) {
+        hlsRef.current.startLoad();
+      }
+    });
+
     // ── 错误处理 + 非 m3u8 blob 降级 ──
     art.on("video:error", async (err) => {
+      if (destroyed) return;
       const video = art.video;
       const code = video?.error?.code;
       const map: Record<number, string> = {
@@ -313,13 +367,21 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
     art.on("destroy", () => {
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
+      hlsRef.current = null;
       artRef.current = null;
       danmukuRef.current = null;
     });
 
     return () => {
+      destroyed = true;
       if (artRef.current) {
-        artRef.current.destroy(false);
+        // 先暂停确保音频停止，再销毁
+        try {
+          artRef.current.pause();
+        } catch {
+          /* ignore */
+        }
+        artRef.current.destroy(true);
         artRef.current = null;
       }
     };

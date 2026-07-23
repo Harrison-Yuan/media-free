@@ -43,6 +43,12 @@ export function getSourceDisplayName(rawName: string): string {
   return rawName;
 }
 
+/** 清洗剧集标签：去掉源名前缀（如 "量子源·第01集" → "第01集"） */
+export function cleanEpisodeLabel(label: string): string {
+  const idx = label.indexOf("·");
+  return idx !== -1 ? label.slice(idx + 1) : label;
+}
+
 // 12 组 Apple 风格渐变配色，覆盖色相环
 const GRADIENTS = [
   ["#007aff", "#5856d6"], // 蓝→紫

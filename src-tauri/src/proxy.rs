@@ -14,10 +14,37 @@
 use std::sync::OnceLock;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
+use tokio::sync::Notify;
 use url::Url;
+
+/// 全局代理用 HTTP 客户端（no_proxy 绕过系统代理）
+static PROXY_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn proxy_client() -> &'static reqwest::Client {
+    PROXY_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .no_proxy()
+            .timeout(std::time::Duration::from_secs(300))
+            .http1_only()
+            .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+            .danger_accept_invalid_certs(true)
+            .build()
+            .expect("proxy client init failed")
+    })
+}
 
 /// 代理端口（应用启动时初始化）
 static PROXY_PORT: OnceLock<u16> = OnceLock::new();
+
+/// 关闭信号
+static PROXY_SHUTDOWN: OnceLock<Notify> = OnceLock::new();
+
+/// 触发代理优雅关闭
+pub fn shutdown() {
+    if let Some(notify) = PROXY_SHUTDOWN.get() {
+        notify.notify_one();
+    }
+}
 
 /// 获取代理端口
 pub fn get_proxy_port() -> Option<u16> {
@@ -55,18 +82,29 @@ pub async fn start() -> Result<u16, String> {
         .local_addr()
         .map_err(|e| format!("proxy addr: {}", e))?
         .port();
-    PROXY_PORT.set(port).ok();
+
+    // 允许重新设置端口（重启场景）
+    let _ = PROXY_PORT.set(port);
 
     eprintln!("[proxy] started on http://127.0.0.1:{}/proxy", port);
 
     tokio::spawn(async move {
+        let shutdown = PROXY_SHUTDOWN.get_or_init(|| Notify::new());
         loop {
-            match listener.accept().await {
-                Ok((stream, _)) => {
-                    tokio::spawn(handle_connection(stream));
+            tokio::select! {
+                result = listener.accept() => {
+                    match result {
+                        Ok((stream, _)) => {
+                            tokio::spawn(handle_connection(stream));
+                        }
+                        Err(e) => {
+                            eprintln!("[proxy] accept error: {}", e);
+                        }
+                    }
                 }
-                Err(e) => {
-                    eprintln!("[proxy] accept error: {}", e);
+                _ = shutdown.notified() => {
+                    eprintln!("[proxy] shutting down gracefully");
+                    break;
                 }
             }
         }
@@ -120,18 +158,8 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
         }
     }
 
-    // ── 用 reqwest（no_proxy 绕过系统代理）获取视频 ──
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(std::time::Duration::from_secs(300))
-        .http1_only()
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
-        .danger_accept_invalid_certs(true)
-        .build()
-        .map_err(|e| eprintln!("[proxy] client build: {}", e))
-        .ok()
-        .unwrap_or_else(|| reqwest::Client::builder().no_proxy().build().unwrap());
-
+    // ── 用全局 reqwest Client（no_proxy 绕过系统代理）获取视频 ──
+    let client = proxy_client();
     let resp = match client
         .get(&target_url)
         .header("Referer", if referer.is_empty() { &target_url } else { &referer })
@@ -173,23 +201,29 @@ async fn handle_connection(stream: tokio::net::TcpStream) {
     // CORS 头
     header.extend_from_slice(b"Access-Control-Allow-Origin: *\r\n");
     header.extend_from_slice(b"Accept-Ranges: bytes\r\n");
-    header.extend_from_slice(b"Connection: close\r\n\r\n");
-
-    // 发送响应头
-    if writer.write_all(&header).await.is_err() {
-        return;
-    }
 
     // ── 如果是 m3u8 内容，重写相对路径为绝对路径 ──
     if is_m3u8 {
         if let Ok(bytes) = resp.bytes().await {
             let rewritten = rewrite_m3u8_urls(&bytes, &target_url);
+            // 添加 Content-Length 头，避免 hls.js 因分块编码可能出现的解析问题
+            header.extend_from_slice(b"Content-Length: ");
+            header.extend_from_slice(rewritten.len().to_string().as_bytes());
+            header.extend_from_slice(b"\r\n\r\n");
+            if writer.write_all(&header).await.is_err() {
+                return;
+            }
             let _ = writer.write_all(rewritten.as_bytes()).await;
         }
         return;
     }
 
-    // ── 非 m3u8：直接流式转发 ──
+    // 非 m3u8：先发送响应头，再流式转发
+    header.extend_from_slice(b"\r\n");
+    if writer.write_all(&header).await.is_err() {
+        return;
+    }
+
     use futures::StreamExt;
     let mut stream = resp.bytes_stream();
     loop {
@@ -222,12 +256,10 @@ fn rewrite_m3u8_urls(content: &[u8], cdn_url: &str) -> String {
     for line in text.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
-            // 非 URI 行：直接保留
             out.push_str(line);
             out.push('\n');
             continue;
         }
-        // URI 行：可能是相对路径，解析为绝对 CDN URL
         match base.join(trimmed) {
             Ok(abs) => out.push_str(abs.as_str()),
             Err(_) => out.push_str(trimmed),

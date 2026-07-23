@@ -9,7 +9,8 @@ use futures::future::join_all;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::collections::HashSet;
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
 // ─── 源定义 ────────────────────────────────────────────────────────────────
@@ -43,11 +44,14 @@ pub fn is_builtin_source(name: &str) -> bool {
 /// 阶段 1：内置源优先（builtin_timeout 内等待）
 /// 阶段 2：TVBox 源次之（tvbox_timeout 内等待）
 /// 返回所有成功完成的结果（按完成顺序）
+///
+/// 若 `cancelled` 在某阶段超时后被设为 true，提醒调用方后续可中止相关工作。
 pub async fn collect_priority<T>(
     sources: &[SourceDef],
     build: impl Fn(&SourceDef) -> tokio::task::JoinHandle<T>,
     builtin_timeout: std::time::Duration,
     tvbox_timeout: std::time::Duration,
+    cancelled: Option<Arc<AtomicBool>>,
 ) -> Vec<T> {
     let mut builtin = FuturesUnordered::new();
     let mut tvbox = FuturesUnordered::new();
@@ -76,7 +80,12 @@ pub async fn collect_priority<T>(
                         None => break,
                     }
                 }
-                _ = &mut deadline => break,
+                _ = &mut deadline => {
+                    if let Some(ref flag) = cancelled {
+                        flag.store(true, Ordering::Relaxed);
+                    }
+                    break;
+                }
             }
         }
     }
@@ -94,7 +103,12 @@ pub async fn collect_priority<T>(
                         None => break,
                     }
                 }
-                _ = &mut deadline => break,
+                _ = &mut deadline => {
+                    if let Some(ref flag) = cancelled {
+                        flag.store(true, Ordering::Relaxed);
+                    }
+                    break;
+                }
             }
         }
     }

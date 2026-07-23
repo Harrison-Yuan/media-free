@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 interface ToastMsg {
   id: number;
@@ -15,16 +15,27 @@ export function toast(text: string, type: ToastMsg["type"] = "info") {
 
 export function ToastContainer() {
   const [messages, setMessages] = useState<ToastMsg[]>([]);
+  const timersRef = useRef<Map<number, number>>(new Map());
 
   const add = useCallback((msg: Omit<ToastMsg, "id">) => {
     const id = ++toastId;
     setMessages((prev) => [...prev, { ...msg, id }]);
-    setTimeout(() => setMessages((prev) => prev.filter((m) => m.id !== id)), 4000);
+    const timerId = window.setTimeout(() => {
+      timersRef.current.delete(id);
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    }, 4000);
+    timersRef.current.set(id, timerId);
   }, []);
 
   useEffect(() => {
     addToastFn = add;
-    return () => { addToastFn = null; };
+    return () => {
+      addToastFn = null;
+      for (const timerId of timersRef.current.values()) {
+        clearTimeout(timerId);
+      }
+      timersRef.current.clear();
+    };
   }, [add]);
 
   if (messages.length === 0) return null;

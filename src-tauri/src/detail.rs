@@ -2,6 +2,9 @@
 // 详情：主源立即返回 + 跨源聚合
 // ═══════════════════════════════════════════════════════════════════════════════
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 use crate::client::CLIENT;
 use crate::models::{
     AppleCmsResponse, SourceDef, SourceGroup, VideoDetail,
@@ -39,19 +42,28 @@ pub async fn get_video_detail(
         })
         .collect();
 
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let cancelled_for_priority = cancelled.clone();
+
     let cross_results = collect_priority(
         &cross_sources.iter().map(|s| (*s).clone()).collect::<Vec<_>>(),
         |src| {
             let s_name = src.name.clone();
             let s_url = src.url.clone();
             let t = title.clone();
+            let c = cancelled.clone();
             tokio::spawn(async move {
+                // 超时后被取消，不再继续请求
+                if c.load(Ordering::Relaxed) {
+                    return (s_name.clone(), vec![]);
+                }
                 let groups = fetch_source_detail_impl(&s_name, &s_url, &t).await;
                 (s_name.clone(), groups)
             })
         },
         std::time::Duration::from_secs(2),
         std::time::Duration::from_secs(2),
+        Some(cancelled_for_priority),
     )
     .await;
 

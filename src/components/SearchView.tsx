@@ -60,11 +60,7 @@ function SearchInput({
           if (e.key === "Enter") onSearch();
         }}
         placeholder={placeholder}
-        className="h-12 w-full rounded-2xl border bg-white/80 pl-12 pr-24 text-[15px] font-medium outline-none backdrop-blur-xl transition-all duration-200 focus:border-[var(--primary)] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.1)]"
-        style={{
-          borderColor: "var(--border)",
-          color: "var(--foreground)",
-        }}
+        className="input-hero"
         autoFocus
       />
       <button
@@ -201,7 +197,7 @@ export function SearchView({
           {/* ── Meta bar ── */}
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold"
+              className="badge-premium"
               style={{ background: "var(--blue-bg)", color: "var(--blue)" }}
             >
               {results.length} 条结果
@@ -231,21 +227,14 @@ export function SearchView({
           </div>
 
           {/* ── Results grid ── */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 stagger-enter">
             {results.map((item, i) => (
               <button
                 key={`${item.source.name}-${item.id}`}
                 onClick={() => onSelectItem(item)}
-                className="group w-full animate-slide-up text-left"
-                style={{ animationDelay: `${Math.min(i * 50, 500)}ms` }}
+                className="group w-full text-left"
               >
-                <div
-                  className="overflow-hidden rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98]"
-                  style={{
-                    background: "var(--card)",
-                    borderColor: "var(--border)",
-                  }}
-                >
+                <div className="card-result">
                   {/* Poster */}
                   <div
                     className="relative overflow-hidden"
@@ -260,7 +249,7 @@ export function SearchView({
                         {item.title.charAt(0)}
                       </span>
                     </div>
-                    {/* 封面图片：部分源搜索接口不返回 vod_pic，为空时不渲染 */}
+                    {/* 封面图片 */}
                     {item.poster && (
                       <img
                         src={item.poster}
@@ -285,14 +274,7 @@ export function SearchView({
 
                     {/* Source badge */}
                     <div className="absolute left-2 top-2 z-10">
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                        style={{
-                          background: "rgba(255,255,255,0.85)",
-                          color: "var(--foreground)",
-                          backdropFilter: "blur(8px)",
-                        }}
-                      >
+                      <span className="badge-source">
                         {item.source.name}
                       </span>
                     </div>
@@ -546,16 +528,12 @@ function InitialState({
                 按分类浏览
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 stagger-enter">
               {categories.map((cat) => (
                 <button
                   key={cat.type_id}
                   onClick={() => onSearch("", cat.type_id)}
-                  className="group rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
-                  style={{
-                    background: "var(--card)",
-                    borderColor: "var(--border)",
-                  }}
+                  className="card-category"
                 >
                   <div
                     className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl"
@@ -620,15 +598,7 @@ function ResultsHeader({
   sourcesResponding: number;
 }) {
   return (
-    <header
-      className="sticky top-0 z-50 flex-shrink-0 border-b"
-      style={{
-        background: "rgba(255,255,255,0.76)",
-        borderColor: "var(--border)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-      }}
-    >
+    <header className="glass-header sticky top-0 z-50 flex-shrink-0">
       <div className="mx-auto max-w-[1280px] px-6 py-3 sm:px-10 lg:px-16">
         <div className="flex items-center gap-4">
           {/* Logo — 点击返回首页 */}
@@ -682,12 +652,7 @@ function ResultsHeader({
                   if (e.key === "Enter") onSearch();
                 }}
                 placeholder="搜索..."
-                className="h-10 w-full rounded-xl border pl-10 pr-4 text-[14px] outline-none transition-all duration-200 focus:border-[var(--primary)] focus:shadow-[0_0_0_2px_rgba(0,122,255,0.1)]"
-                style={{
-                  background: "var(--secondary)",
-                  borderColor: "var(--border)",
-                  color: "var(--foreground)",
-                }}
+                className="input-search"
               />
             </div>
           </div>

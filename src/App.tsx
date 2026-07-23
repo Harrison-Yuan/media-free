@@ -7,6 +7,7 @@ import { SearchView } from "./components/SearchView";
 import { DetailView } from "./components/DetailView";
 import type { VideoItem, VideoDetail, SearchUpdateEvent } from "./types";
 import { mergeSearchResults } from "./lib/utils";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import "./App.css";
 
 const PAGE_SIZE = 20;
@@ -23,6 +24,71 @@ function AppInner() {
   const [detail, setDetail] = useState<VideoDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
+
+  // ── 检测是否是详情窗口 ──
+  const params = new URLSearchParams(window.location.search);
+  const isDetailWindow = params.get("detail") === "true";
+
+  // 详情窗口自动加载数据
+  useEffect(() => {
+    if (!isDetailWindow) return;
+    const id = params.get("id");
+    const source = params.get("source");
+    const api = params.get("api");
+    if (!id || !source || !api) return;
+
+    setDetailLoading(true);
+    getVideoDetail(source, api, id)
+      .then(setDetail)
+      .catch(() => toast("详情加载失败", "error"))
+      .finally(() => setDetailLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── 详情窗口渲染 ──
+  if (isDetailWindow) {
+    if (detailLoading) {
+      return (
+        <div
+          className="flex h-screen w-screen items-center justify-center"
+          style={{ background: "var(--background)" }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+              style={{
+                borderColor: "var(--border)",
+                borderTopColor: "var(--primary)",
+              }}
+            />
+            <span
+              className="text-[13px]"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              加载详情中...
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    if (detail) {
+      return (
+        <>
+          <DetailView
+            detail={detail}
+            playing={playing}
+            onPlay={(url) => setPlaying(url)}
+          />
+          <ToastContainer />
+        </>
+      );
+    }
+
+    return null;
+  }
+
+  // ── 主窗口 ──
 
   const doSearch = useCallback(async (q: string, typeId?: number) => {
     const keyword = q.trim();
@@ -52,24 +118,30 @@ function AppInner() {
   const hasMore = displayCount < results.length;
 
   const openDetail = useCallback(async (item: VideoItem) => {
-    setPlaying(null);
-    setDetailLoading(true);
+    const label = `detail-${item.id}`;
 
-    try {
-      const d = await getVideoDetail(
-        item.source.name,
-        item.source.api_url,
-        item.id,
-      );
-      setDetail(d);
-    } catch {
-      toast("详情加载失败，请重试", "error");
-    } finally {
-      setDetailLoading(false);
+    // 如果已存在同标签窗口，聚焦（do nothing）
+    const existing = await WebviewWindow.getByLabel(label);
+    if (existing) {
+      await existing.setFocus();
+      return;
     }
+
+    // 立即创建窗口，无需等待详情数据
+    // 窗口自己会通过 URL 参数加载详情
+    const detailWindow = new WebviewWindow(label, {
+      url: `/?detail=true&id=${encodeURIComponent(item.id)}&source=${encodeURIComponent(item.source.name)}&api=${encodeURIComponent(item.source.api_url)}`,
+      title: item.title,
+      width: 1280,
+      height: 800,
+    });
+
+    detailWindow.once("tauri://error", (err) => {
+      console.error("[detail] window creation failed:", err);
+    });
   }, []);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (仅主窗口生效)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -123,7 +195,7 @@ function AppInner() {
     loadingRef.current = false;
   }, [results.length]);
 
-  // ── Detail view ──
+  // ── Detail view (主窗口内联，搜索结果下方) ──
   if (detailLoading) {
     return (
       <div
@@ -156,10 +228,6 @@ function AppInner() {
           detail={detail}
           playing={playing}
           onPlay={(url) => setPlaying(url)}
-          onBack={() => {
-            setDetail(null);
-            setPlaying(null);
-          }}
         />
         <ToastContainer />
       </>
