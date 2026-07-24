@@ -25,12 +25,16 @@ export async function searchVideo(
   keyword: string,
   typeId?: number,
   page?: number,
+  area?: string,
+  year?: number,
 ): Promise<SearchResult> {
   try {
     return await invoke<SearchResult>("search_video", {
       keyword,
       typeId: typeId ?? null,
       page: page ?? null,
+      area: area ?? null,
+      year: year ?? null,
     });
   } catch (e) {
     throw parseError(e);
@@ -56,6 +60,20 @@ export async function getVideoDetail(
 export async function fetchCategories(): Promise<Category[]> {
   try {
     return await invoke<Category[]>("fetch_categories");
+  } catch {
+    return [];
+  }
+}
+
+/** 获取指定一级分类的二级分类列表 */
+export async function fetchSubcategories(
+  parentTypeId: number,
+): Promise<Array<{ type_id: number; type_name: string }>> {
+  try {
+    return await invoke<Array<{ type_id: number; type_name: string }>>(
+      "fetch_subcategories",
+      { parentTypeId },
+    );
   } catch {
     return [];
   }

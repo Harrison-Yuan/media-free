@@ -11,6 +11,17 @@ where D: Deserializer<'de> {
     })
 }
 
+/// 自定义反序列化：vod_score 可能是字符串("5.7")或数字(5.7)
+/// 各平台 API 返回格式不一致，统一兼容
+fn de_score<'de, D>(d: D) -> Result<Option<f64>, D::Error>
+where D: Deserializer<'de> {
+    Ok(match Value::deserialize(d) {
+        Ok(Value::String(s)) => s.parse::<f64>().ok(),
+        Ok(Value::Number(n)) => n.as_f64(),
+        _ => None,
+    })
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 前端 API 契约
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -31,6 +42,10 @@ pub struct VideoItem {
     pub source: SourceInfo,
     pub episodes: Vec<EpisodeItem>,
     pub source_groups: Vec<SourceGroup>,
+    pub hits: i64,
+    pub score: f64,
+    pub year: String,
+    pub area: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -76,14 +91,6 @@ pub struct DanmuItem {
     pub time: f64,
 }
 
-/// API 返回的分类信息（class 字段中的一项）
-#[derive(Debug, Serialize, Clone)]
-pub struct CategoryInfo {
-    pub type_id: i32,
-    pub type_name: String,
-    pub source_name: String,
-}
-
 /// TVBox 配置中提取的 type=1 视频源定义
 #[derive(Debug, Clone)]
 pub struct SourceDef {
@@ -110,7 +117,7 @@ pub struct ClassItem {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppleCmsItem {
-    #[serde(deserialize_with = "de_id")]
+    #[serde(default, deserialize_with = "de_id")]
     pub vod_id: Option<String>,
     pub vod_name: Option<String>,
     pub vod_pic: Option<String>,
@@ -118,6 +125,15 @@ pub struct AppleCmsItem {
     pub vod_content: Option<String>,
     pub vod_play_from: Option<String>,
     pub vod_play_url: Option<String>,
+    pub vod_hits: Option<i64>,
+    #[serde(default, deserialize_with = "de_score")]
+    pub vod_score: Option<f64>,
+    pub vod_time: Option<String>,
+    pub vod_year: Option<String>,
+    pub vod_area: Option<String>,
+    pub vod_lang: Option<String>,
+    pub vod_actor: Option<String>,
+    pub vod_director: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

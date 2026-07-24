@@ -15,6 +15,16 @@ use tokio::sync::Mutex;
 
 // ─── 源定义 ────────────────────────────────────────────────────────────────
 
+/// 调试模式：单源验证
+///
+/// 设为 `Some("源名称")` 时只使用该源，便于逐平台验证。
+/// 设为 `None` 则使用全部源（正式模式）。
+pub const DEBUG_SINGLE_SOURCE: Option<&str> = Some("量子资源");
+
+/// 调试模式：仅使用 TVBox 发现源，跳过内置源
+/// 设为 `true` 时跳过 BUILTIN_SOURCES，仅从 TVBox 配置中发现源
+pub const DEBUG_TVBOX_ONLY: bool = false;
+
 /// TVBox 配置 URL 列表，从中发现 type=1 的视频源
 const TVBOX_CONFIGS: &[&str] = &[
     "https://raw.liucn.cc/box/m.json",
@@ -225,6 +235,9 @@ fn idn_encode(url: &str) -> String {
 static SOURCES_CACHE: OnceLock<Mutex<Option<Vec<SourceDef>>>> = OnceLock::new();
 
 /// 收集所有可用视频源（内置源 + TVBox 发现的 type=1 源）
+///
+/// 当 `DEBUG_SINGLE_SOURCE` 设为 `Some(name)` 时，仅返回匹配的单个源，
+/// 用于逐平台验证。设为 `None` 时返回全部源（正式模式）。
 pub async fn collect_sources() -> Vec<SourceDef> {
     // 已有缓存则直接返回
     {
@@ -235,41 +248,64 @@ pub async fn collect_sources() -> Vec<SourceDef> {
         }
     }
 
-    let mut sources: Vec<SourceDef> = BUILTIN_SOURCES
-        .iter()
-        .map(|(n, u)| SourceDef {
-            name: n.to_string(),
-            url: u.to_string(),
-        })
-        .collect();
-    let mut seen: HashSet<String> = sources.iter().map(|s| s.url.clone()).collect();
-    let mut tasks = Vec::new();
-    for &url in TVBOX_CONFIGS {
-        let u = idn_encode(url);
-        tasks.push(tokio::spawn(async move {
-            if let Ok(resp) = CLIENT.get(&u).send().await {
-                if resp.status().is_success() {
-                    if let Ok(bytes) = resp.bytes().await {
-                        return Some(String::from_utf8_lossy(&bytes).to_string());
+    let mut sources: Vec<SourceDef> = if DEBUG_TVBOX_ONLY {
+        eprintln!("[sources] debug: 跳过内置源，仅使用 TVBox 发现源");
+        Vec::new()
+    } else {
+        BUILTIN_SOURCES
+            .iter()
+            .map(|(n, u)| SourceDef {
+                name: n.to_string(),
+                url: u.to_string(),
+            })
+            .collect()
+    };
+
+    // TVBox 动态发现（除非单源调试模式中使用了已知源名称）
+    if DEBUG_SINGLE_SOURCE.is_none() {
+        let mut seen: HashSet<String> = sources.iter().map(|s| s.url.clone()).collect();
+        let mut tasks = Vec::new();
+        for &url in TVBOX_CONFIGS {
+            let u = idn_encode(url);
+            tasks.push(tokio::spawn(async move {
+                if let Ok(resp) = CLIENT.get(&u).send().await {
+                    if resp.status().is_success() {
+                        if let Ok(bytes) = resp.bytes().await {
+                            return Some(String::from_utf8_lossy(&bytes).to_string());
+                        }
                     }
                 }
-            }
-            None
-        }));
-    }
-    for r in join_all(tasks).await {
-        if let Ok(Some(text)) = r {
-            for s in extract_type1(&text) {
-                if seen.insert(s.url.clone()) {
-                    let name = s.name.trim().to_string();
-                    if !name.is_empty() {
-                        sources.push(SourceDef { name, url: s.url });
+                None
+            }));
+        }
+        for r in join_all(tasks).await {
+            if let Ok(Some(text)) = r {
+                for s in extract_type1(&text) {
+                    if seen.insert(s.url.clone()) {
+                        let name = s.name.trim().to_string();
+                        if !name.is_empty() {
+                            sources.push(SourceDef { name, url: s.url });
+                        }
                     }
                 }
             }
         }
     }
-    eprintln!("[sources] {} type=1 XML API 源", sources.len());
+
+    // ── 单源调试模式过滤 ──
+    if let Some(debug_name) = DEBUG_SINGLE_SOURCE {
+        sources.retain(|s| {
+            let matched = s.name.contains(debug_name);
+            if !matched {
+                eprintln!("[sources] debug: 跳过 {}", s.name);
+            }
+            matched
+        });
+        eprintln!("[sources] debug: 仅使用 \"{}\" ({} 个源)", debug_name, sources.len());
+    } else {
+        eprintln!("[sources] {} type=1 XML API 源", sources.len());
+    }
+
     *SOURCES_CACHE.get().unwrap().lock().await = Some(sources.clone());
     sources
 }

@@ -10,6 +10,7 @@ mod models;
 mod parser;
 mod proxy;
 mod search;
+mod source_handlers;
 mod sources;
 
 use std::time::Instant;
@@ -139,6 +140,12 @@ async fn check_sources() -> Vec<SourceStatus> {
 async fn fetch_categories() -> Vec<categories::CatDisplayItem> {
     let sources = collect_sources().await;
     categories::build_mapping(&sources).await
+}
+
+/// 获取指定一级分类的二级分类列表（本地映射表，不请求网络）
+#[tauri::command]
+async fn fetch_subcategories(parent_type_id: i32) -> Vec<categories::SubCategoryItem> {
+    categories::get_subcategories(parent_type_id)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -289,6 +296,7 @@ pub fn run() {
             check_proxy_mode,
             check_sources,
             fetch_categories,
+            fetch_subcategories,
             fetch_danmaku,
         ])
         .run(tauri::generate_context!())

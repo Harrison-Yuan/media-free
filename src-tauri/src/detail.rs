@@ -12,6 +12,7 @@ use crate::models::{
 use crate::parser::{
     normalize_title, parse_episodes, parse_source_groups, resolve_poster, urlencode,
 };
+use crate::source_handlers;
 use crate::sources::collect_priority;
 
 /// 获取视频详情（含跨源剧集聚合）
@@ -99,13 +100,18 @@ async fn fetch_single_detail(
     video_id: &str,
     api_url: &str,
 ) -> Result<VideoDetail, String> {
-    for path in [format!("{}/?ac=detail&ids={}", base, video_id)] {
-        let resp = match CLIENT.get(&path).send().await {
+    // 通过源处理器获取该平台特有的详情 URL 列表（含 fallback pattern）
+    let handler = source_handlers::get_handler(api_url);
+    let paths = handler.build_detail_urls(base, video_id);
+    for path in &paths {
+        let resp = match CLIENT.get(path).send().await {
             Ok(r) if r.status().is_success() => r,
             _ => continue,
         };
         let text =
             String::from_utf8_lossy(&resp.bytes().await.unwrap_or_default()).to_string();
+        eprintln!("[detail] '{}' response: {}B", source_name, text.len());
+
         if let Ok(ac) = serde_json::from_str::<AppleCmsResponse>(&text) {
             if let Some(list) = ac.list {
                 if let Some(item) = list.into_iter().next() {
@@ -151,7 +157,7 @@ async fn fetch_single_detail(
             }
         }
     }
-    Err("NOT_FOUND".into())
+    Err(format!("NOT_FOUND: no detail for {} @ {}", video_id, source_name))
 }
 
 /// 按标题在指定源中搜索视频并返回其剧集分组（内部实现）

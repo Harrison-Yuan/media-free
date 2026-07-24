@@ -9,6 +9,7 @@ use crate::models::{
     AppleCmsResponse, RssResponse, SearchResult, SourceDef, SourceInfo, VideoItem,
 };
 use crate::parser::{normalize_title, parse_episodes, parse_source_groups, resolve_poster, urlencode};
+use crate::source_handlers;
 use crate::sources::is_builtin_source;
 
 use std::time::Instant;
@@ -33,15 +34,25 @@ pub async fn search_video(
     keyword: String,
     type_id: Option<i32>,
     page: Option<i32>,
+    area: Option<String>,
+    year: Option<i32>,
 ) -> Result<SearchResult, String> {
     let kw = keyword.trim();
-    if kw.is_empty() && type_id.is_none() {
-        return Err("EMPTY_KEYWORD".into());
-    }
     let start = Instant::now();
+
+    eprintln!(
+        "[search] ENTER: keyword='{}'(len={}), type_id={:?}, page={:?}",
+        kw,
+        kw.len(),
+        type_id,
+        page
+    );
+
     let all_sources = crate::sources::collect_sources().await;
     let mut sources: Vec<&SourceDef> =
         all_sources.iter().filter(|s| is_source_healthy(&s.url)).collect();
+
+    eprintln!("[search] sources: {} total, {} healthy", all_sources.len(), sources.len());
 
     // 分类筛选
     let cat_name = type_id.and_then(|tid| categories::lookup_cat_name(tid));
@@ -73,30 +84,40 @@ pub async fn search_video(
     };
     let pg = page.unwrap_or(1);
 
+    // ── 构建搜索 URL ──
+    // 每个源通过其 SourceConfig::build_list_url 自定义 URL 格式
+    // ── 构建搜索 URL ──
+    let search_urls: Vec<(String, String, String)> = sources
+        .iter()
+        .map(|src| {
+            let actual_tid = cat_name
+                .as_ref()
+                .and_then(|name| categories::get_type_id_for_source(name, &src.url))
+                .or(type_id);
+            let params = mapping::SearchUrlParams {
+                keyword: encoded.clone(),
+                type_id: actual_tid,
+                page: pg,
+                area: area.as_ref().map(|a| urlencode(a)),
+                year,
+            };
+
+            let handler = source_handlers::get_handler(&src.url);
+            let config = mapping::get_source_config(&src.url);
+            let url = handler.build_list_url(&src.url, config, &params);
+
+            eprintln!("[search] URL '{}': {}", src.name, url);
+
+            (src.name.clone(), src.url.clone(), url)
+        })
+        .collect();
+
+    eprintln!("[search] built {} search URLs", search_urls.len());
+
     // ── Channel: 所有源查询结果汇集于此 ──
     let (tx, mut rx) = mpsc::unbounded_channel::<(String, Vec<VideoItem>)>();
 
-    for src in &sources {
-        let mut search_url = format!("{}/?ac=list", src.url.trim_end_matches('/'));
-        if !encoded.is_empty() {
-            search_url.push_str(&format!("&wd={}", encoded));
-        }
-        let actual_tid = cat_name
-            .as_ref()
-            .and_then(|name| categories::get_type_id_for_source(name, &src.url))
-            .or(type_id);
-        if let Some(t) = actual_tid {
-            search_url.push_str(&format!("&t={}", t));
-        }
-        let ps_param = mapping::get_source_page_size_param(&src.url);
-        let ps_val = mapping::get_source_default_page_size(&src.url);
-        if !ps_param.is_empty() {
-            search_url.push_str(&format!("&pg={}&{}={}", pg, ps_param, ps_val));
-        } else {
-            search_url.push_str(&format!("&pg={}", pg));
-        }
-        let name = src.name.clone();
-        let api_base = src.url.clone();
+    for (name, api_base, search_url) in search_urls {
         let tx = tx.clone();
         tokio::spawn(async move {
             let result = fetch_source(&name, &search_url, &api_base).await;
@@ -230,7 +251,20 @@ async fn fetch_source(
         return Err(format!("[{}] empty", name));
     }
 
+    eprintln!("[fetch] '{}' response: {}B", name, text.len());
+
+    // 先验证是否为有效 JSON
+    match serde_json::from_str::<serde_json::Value>(&text) {
+        Ok(_) => eprintln!("[fetch] '{}' raw JSON is valid", name),
+        Err(e) => {
+            eprintln!("[fetch] '{}' raw JSON INVALID: {}", name, e);
+            eprintln!("[fetch] first 500 chars: {}", &text[..text.len().min(500)]);
+        }
+    }
+
     if let Ok(ac) = serde_json::from_str::<AppleCmsResponse>(&text) {
+        let list_len = ac.list.as_ref().map(|l| l.len()).unwrap_or(0);
+        eprintln!("[fetch] '{}' JSON OK, list items: {}", name, list_len);
         if let Some(list) = ac.list {
             let out: Vec<VideoItem> = list
                 .into_iter()
@@ -252,13 +286,23 @@ async fn fetch_source(
                         },
                         episodes,
                         source_groups,
+                        hits: i.vod_hits.unwrap_or(0),
+                        score: i.vod_score.unwrap_or(0.0),
+                        year: i.vod_year.unwrap_or_default(),
+                        area: i.vod_area.unwrap_or_default(),
                     }
                 })
                 .collect();
             if !out.is_empty() {
+                eprintln!("[fetch] '{}' → {} VideoItems", name, out.len());
                 return Ok(out);
             }
+            eprintln!("[fetch] '{}' JSON: list present but all items filtered out or empty", name);
         }
+    } else {
+        let err = serde_json::from_str::<AppleCmsResponse>(&text).unwrap_err();
+        eprintln!("[fetch] '{}' AppleCmsResponse parse error: {}", name, err);
+        eprintln!("[fetch] trying XML...");
     }
     if text.trim().starts_with('<') {
         if let Ok(rss) = quick_xml::de::from_str::<RssResponse>(&text) {
@@ -282,18 +326,23 @@ async fn fetch_source(
                         },
                         episodes: vec![],
                         source_groups: vec![],
+                        hits: 0,
+                        score: 0.0,
+                        year: String::new(),
+                        area: String::new(),
                     })
                     .collect();
                 if !out.is_empty() {
                     return Ok(out);
                 }
             }
+            eprintln!("[fetch] '{}' XML parse also failed", name);
         }
     }
     Err(format!("[{}] unparseable {}B", name, text.len()))
 }
 
-/// 排序：已验证可播 > 有封面 > 内置源 > 标题短
+/// 排序：播放量 > 评分 > 有封面 > 内置源 > 标题短
 /// 去重：同标题优先保留排在前面的
 fn sort_and_dedup(items: &mut Vec<VideoItem>) {
     items.sort_by(|a, b| {
@@ -303,8 +352,10 @@ fn sort_and_dedup(items: &mut Vec<VideoItem>) {
         let b_pic = !b.poster.is_empty();
         let a_builtin = is_builtin_source(&a.source.name);
         let b_builtin = is_builtin_source(&b.source.name);
-        b_score
-            .cmp(&a_score)
+        b.hits
+            .cmp(&a.hits)
+            .then_with(|| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal))
+            .then_with(|| b_score.cmp(&a_score))
             .then_with(|| b_pic.cmp(&a_pic))
             .then_with(|| b_builtin.cmp(&a_builtin))
             .then_with(|| a.title.len().cmp(&b.title.len()))

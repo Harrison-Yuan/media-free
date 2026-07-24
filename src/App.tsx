@@ -13,6 +13,10 @@ import "./App.css";
 const PAGE_SIZE = 20;
 
 function AppInner() {
+  // ── 检测是否是详情窗口（必须在 state 声明前，因为 detailLoading 初始化依赖此值） ──
+  const params = new URLSearchParams(window.location.search);
+  const isDetailWindow = params.get("detail") === "true";
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<VideoItem[]>([]);
   const [searching, setSearching] = useState(false);
@@ -22,14 +26,10 @@ function AppInner() {
   const [currentTypeId, setCurrentTypeId] = useState<number | undefined>();
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const [detail, setDetail] = useState<VideoDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(isDetailWindow);
   const [playing, setPlaying] = useState<string | null>(null);
 
-  // ── 检测是否是详情窗口 ──
-  const params = new URLSearchParams(window.location.search);
-  const isDetailWindow = params.get("detail") === "true";
-
-  // 详情窗口自动加载数据
+  // ── 详情窗口自动加载数据 ──
   useEffect(() => {
     if (!isDetailWindow) return;
     const id = params.get("id");
@@ -85,7 +85,56 @@ function AppInner() {
       );
     }
 
-    return null;
+    // ── 详情加载失败降级 UI ──
+    return (
+      <div
+        className="flex h-screen w-screen flex-col items-center justify-center gap-5"
+        style={{ background: "var(--background)" }}
+      >
+        <div
+          className="flex h-14 w-14 items-center justify-center rounded-2xl"
+          style={{ background: "var(--secondary)" }}
+        >
+          <svg
+            className="h-6 w-6"
+            style={{ color: "var(--text-tertiary)" }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.75L13.75 4a2 2 0 00-3.5 0L3.25 16.25A2 2 0 005.07 19z"
+            />
+          </svg>
+        </div>
+        <p
+          className="text-[16px] font-semibold"
+          style={{ color: "var(--foreground)" }}
+        >
+          详情加载失败
+        </p>
+        <p
+          className="text-[13px] -mt-3"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          请检查网络连接后重试
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-full px-5 py-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.95]"
+          style={{
+            background: "var(--primary)",
+            color: "#fff",
+          }}
+        >
+          重新加载
+        </button>
+        <ToastContainer />
+      </div>
+    );
   }
 
   // ── 主窗口 ──

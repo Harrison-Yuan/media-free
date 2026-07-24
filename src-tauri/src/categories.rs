@@ -6,7 +6,8 @@
 // 确保搜索时各源使用各自对应的 type_id 查询。
 //
 // 映射来源：
-//   - mapping.rs 提供静态基础映射（核心分类 + per-source 扩展 + 别名）
+//   - mapping.rs 提供静态基础映射（核心分类 + 别名 + 父子层级）
+//   - source_handlers/ 各独立文件中维护各平台参数映射
 //   - 运行时动态查询各源 class 接口，补充静态映射未覆盖的分类
 //
 // 别名处理：源可能返回"连续剧"（官方标准名），我们显示为"电视剧"，
@@ -16,6 +17,7 @@
 use crate::client::CLIENT;
 use crate::mapping;
 use crate::models::{AppleCmsResponse, SourceDef};
+use crate::source_handlers;
 
 use serde::Serialize;
 use std::collections::HashMap;
@@ -68,8 +70,8 @@ pub fn lookup_cat_name(type_id: i32) -> Option<String> {
             return Some(name.to_string());
         }
     }
-    // 查 PER_SOURCE_CONFIGS 的扩展分类
-    for cfg in mapping::PER_SOURCE_CONFIGS {
+    // 查各平台参数映射的扩展分类
+    for cfg in source_handlers::all_configs() {
         for (tid, tname) in cfg.categories {
             if *tid == type_id {
                 return Some(tname.to_string());
@@ -91,13 +93,6 @@ pub fn lookup_cat_name(type_id: i32) -> Option<String> {
         }
     }
     None
-}
-
-/// 获取指定分类名称的 per-source type_id 映射
-pub fn get_per_source_map(cat_name: &str) -> Option<HashMap<String, i32>> {
-    let cache = CATEGORY_PER_SOURCE.get()?;
-    let guard = cache.lock().ok()?;
-    guard.get(cat_name).cloned()
 }
 
 /// 判断某源是否支持某分类
@@ -132,21 +127,19 @@ pub struct CatDisplayItem {
     pub type_id: i32,
     pub type_name: String,
     pub source_name: String,
+    /// 父分类 type_id（0 = 一级分类，>0 = 二级分类的父分类 ID）
+    pub type_pid: i32,
 }
 
-static CAT_LIST_CACHE: OnceLock<Mutex<Vec<CatDisplayItem>>> = OnceLock::new();
-
-pub fn get_cached_categories() -> Vec<CatDisplayItem> {
-    CAT_LIST_CACHE
-        .get()
-        .and_then(|c| c.lock().ok().map(|g| g.clone()))
-        .unwrap_or_default()
-}
-
-/// 构建全部分类映射（以 mapping.rs 静态映射为基础，动态发现补充）
+/// 构建全部分类映射
+///
+/// 以 mapping.rs 静态映射 + 各平台参数映射为基础，动态发现补充。
 pub async fn build_mapping(sources: &[SourceDef]) -> Vec<CatDisplayItem> {
+    let platform_configs: Vec<&'static mapping::SourceConfig> = source_handlers::all_configs();
+
     // ── 1. 从静态映射构建基础 per-source 映射 ──
-    let mut per_src: HashMap<String, HashMap<String, i32>> = mapping::build_static_per_source();
+    let mut per_src: HashMap<String, HashMap<String, i32>> =
+        mapping::build_static_per_source(&platform_configs);
     let mut cat_stats: HashMap<String, (u32, String)> = HashMap::new();
     for (_id, name) in mapping::CORE_CATEGORIES {
         cat_stats.entry(name.to_string()).or_insert((0, String::new()));
@@ -162,12 +155,16 @@ pub async fn build_mapping(sources: &[SourceDef]) -> Vec<CatDisplayItem> {
                         for c in classes {
                             let raw_name = c.type_name.trim().to_string();
                             if raw_name.is_empty() { continue; }
-                            // 通过别名映射为标准显示名
                             let display_name = mapping::resolve_display_name(&raw_name).to_string();
                             let entry = cat_stats.entry(display_name.clone()).or_insert((0, src.name.clone()));
                             entry.0 += 1;
-                            // 静态映射已覆盖的分类不覆盖（别名映射也算已覆盖）
-                            if !per_src.contains_key(&display_name) {
+                            // 判断是否只有兜底通配映射（空 key），若是则允许动态发现按源覆盖
+                            let is_only_fallback = per_src
+                                .get(&display_name)
+                                .map(|m| m.len() == 1 && m.contains_key("") && *m.get("").unwrap_or(&0) > 0)
+                                .unwrap_or(true);
+                            let is_unknown = !per_src.contains_key(&display_name);
+                            if is_unknown || is_only_fallback {
                                 per_src.entry(display_name.clone()).or_default().insert(src.url.clone(), c.type_id);
                             }
                         }
@@ -182,7 +179,6 @@ pub async fn build_mapping(sources: &[SourceDef]) -> Vec<CatDisplayItem> {
     for (tid, tname) in mapping::CORE_CATEGORIES {
         let name = tname.to_string();
         if let Some(src_map) = per_src.get_mut(&name) {
-            // 移除通配符和别名标记
             src_map.retain(|k, v| !k.is_empty() && *v != 0);
             for src in sources {
                 src_map.entry(src.url.clone()).or_insert(*tid);
@@ -199,7 +195,7 @@ pub async fn build_mapping(sources: &[SourceDef]) -> Vec<CatDisplayItem> {
     }
 
     // ── 5. 输出格式化分类列表 ──
-    let standard = ["电影", "电视剧", "综艺", "动漫", "短剧"];
+    let standard = ["电影", "电视剧", "综艺", "动漫", "短剧", "动作片", "喜剧片", "爱情片", "科幻片", "恐怖片", "剧情片", "战争片", "国产剧", "港台剧", "日韩剧", "欧美剧"];
     let mut out: Vec<CatDisplayItem> = cat_stats
         .into_iter()
         .filter(|(name, (count, _))| *count >= 2 || standard.contains(&name.as_str()))
@@ -208,14 +204,31 @@ pub async fn build_mapping(sources: &[SourceDef]) -> Vec<CatDisplayItem> {
                 .get(&type_name)
                 .and_then(|m| m.values().find(|&&v| v != 0).copied())
                 .unwrap_or(1);
-            CatDisplayItem { type_id: tid, type_name, source_name }
+            let type_pid = mapping::get_parent_type_id(tid).unwrap_or(0);
+            CatDisplayItem { type_id: tid, type_name, source_name, type_pid }
         })
         .collect();
     out.sort_by_key(|c| standard.iter().position(|s| *s == c.type_name).unwrap_or(99));
 
-    if let Ok(mut guard) = CAT_LIST_CACHE.get_or_init(|| Mutex::new(vec![])).lock() {
-        *guard = out.clone();
-    }
-
     out
+}
+
+// ─── 二级分类查询 ────────────────────────────────────────────────────────
+
+/// 二级分类项（用于前端筛选组件）
+#[derive(Serialize, Clone)]
+pub struct SubCategoryItem {
+    pub type_id: i32,
+    pub type_name: String,
+}
+
+/// 获取指定一级分类的二级分类列表（用于前端筛选组件）
+pub fn get_subcategories(parent_type_id: i32) -> Vec<SubCategoryItem> {
+    mapping::get_subcategories(parent_type_id)
+        .into_iter()
+        .map(|(tid, name)| SubCategoryItem {
+            type_id: tid,
+            type_name: name.to_string(),
+        })
+        .collect()
 }

@@ -12,6 +12,10 @@ export interface VideoItem {
   source: SourceInfo;
   episodes: EpisodeItem[];
   source_groups: SourceGroup[];
+  hits: number;
+  score: number;
+  year: string;
+  area: string;
 }
 
 export interface SearchResult {
@@ -49,16 +53,104 @@ export interface Category {
   type_id: number;
   type_name: string;
   source_name: string;
+  /** 父分类 type_id（0 = 一级分类，>0 = 二级分类所属的父分类 ID） */
+  type_pid: number;
 }
 
 // 核心分类后备（API 获取失败时使用，仅核心 1-4 通用）
 // 扩展分类（如"短剧"的 type_id 因源而异）由后端动态发现
 export const CORE_CATEGORIES: Category[] = [
-  { type_id: 1, type_name: "电影", source_name: "" },
-  { type_id: 2, type_name: "电视剧", source_name: "" },
-  { type_id: 3, type_name: "综艺", source_name: "" },
-  { type_id: 4, type_name: "动漫", source_name: "" },
+  { type_id: 1, type_name: "电影", source_name: "", type_pid: 0 },
+  { type_id: 2, type_name: "电视剧", source_name: "", type_pid: 0 },
+  { type_id: 3, type_name: "综艺", source_name: "", type_pid: 0 },
+  { type_id: 4, type_name: "动漫", source_name: "", type_pid: 0 },
 ];
+
+// ─── 二级分类本地映射表 ─────────────────────────────────────────────────────
+//
+// 数据来源：Apple CMS 官方文档 https://www.kancloud.cn/pgcms/maccms/2405302
+// type_pid 字段指向一级分类的 type_id：
+//   电影(1) → 喜剧片(6), 爱情片(7), 科幻片(8), 恐怖片(9), 剧情片(10), 战争片(11)
+//   电视剧(2) → 国产剧(12), 港台剧(13), 日韩剧(14), 欧美剧(15)
+//
+// 用途：前端筛选组件使用此表显示二级分类按钮。
+// 优先使用后端 fetch_subcategories 返回的实时数据，
+// 此表作为后端不可用时的前端本地兜底。
+// 注意：此映射仅适用于标准 Apple CMS 源，
+//       per-source 特殊分类（如短剧）由后端单独处理。
+export interface SubCategory {
+  type_id: number;
+  type_name: string;
+}
+
+export const SUB_CATEGORY_MAP: Record<number, SubCategory[]> = {
+  1: [ // 电影 → 二级分类
+    { type_id: 6, type_name: "喜剧片" },
+    { type_id: 7, type_name: "爱情片" },
+    { type_id: 8, type_name: "科幻片" },
+    { type_id: 9, type_name: "恐怖片" },
+    { type_id: 10, type_name: "剧情片" },
+    { type_id: 11, type_name: "战争片" },
+  ],
+  2: [ // 电视剧 → 二级分类
+    { type_id: 12, type_name: "国产剧" },
+    { type_id: 13, type_name: "港台剧" },
+    { type_id: 14, type_name: "日韩剧" },
+    { type_id: 15, type_name: "欧美剧" },
+  ],
+};
+
+/** 从本地映射表获取指定一级分类的二级分类列表 */
+export function getLocalSubCategories(parentTypeId: number): SubCategory[] {
+  return SUB_CATEGORY_MAP[parentTypeId] ?? [];
+}
+
+// ─── 地区本地映射表 ─────────────────────────────────────────────────────────
+//
+// 数据来源：Apple CMS 官方文档 https://www.maccms.plus/theme/theme-vod.html
+// API 支持 area 参数筛选地区（如大陆、香港、美国等）
+// 此表用于前端筛选组件显示地区选项。
+// 注意：并非所有源都支持 area 筛选，不支持的源会忽略此参数。
+
+export const AREA_OPTIONS = [
+  "大陆",
+  "香港",
+  "台湾",
+  "美国",
+  "日本",
+  "韩国",
+  "英国",
+  "法国",
+  "泰国",
+  "印度",
+  "其他",
+] as const;
+
+export type AreaValue = (typeof AREA_OPTIONS)[number];
+
+// ─── 年份本地映射表 ─────────────────────────────────────────────────────────
+//
+// 数据来源：Apple CMS 官方文档 https://www.maccms.plus/theme/theme-vod.html
+// API 支持 year 参数筛选年份。
+// 动态生成近 15 年 + 更早选项。
+
+export function getYearOptions(): number[] {
+  const current = new Date().getFullYear(); // 2026
+  const years: number[] = [];
+  for (let y = current; y >= current - 15; y--) {
+    years.push(y);
+  }
+  return years;
+}
+
+export const YEAR_OPTIONS = getYearOptions();
+
+/** 筛选状态类型：记录所有激活的筛选条件 */
+export interface FilterState {
+  typeId: number | null;   // 二级分类 type_id，null=全部
+  area: string | null;     // 地区，null=全部
+  year: number | null;     // 年份，null=全部
+}
 
 // ─── 事件推送数据类型 ───────────────────────────────────────────────────────
 // 后端 search-update 事件的 payload

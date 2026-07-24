@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// Apple CMS 标准分类-源映射表
+// Apple CMS 标准分类 & 通用映射工具
 //
 // # 数据来源
 // 参考官方文档：https://github.com/magicblack/maccms10
@@ -16,6 +16,10 @@
 //   - "短剧" type_id 因源而异：量子=46, 非凡=36, 红牛=30
 //   - 分页参数：量子忽略 limit/pagesize，红牛两者都支持，非凡仅 pagesize
 //   - 返回值类型：量子/非凡用字符串，红牛用数值
+//
+// # 各平台参数映射
+// 各源的具体参数（type_id 映射、分页参数等）已移至
+// source_handlers/ 下各独立文件中维护，互不影响。
 // ═══════════════════════════════════════════════════════════════════════════════
 
 use std::collections::HashMap;
@@ -59,7 +63,8 @@ pub fn resolve_display_name(raw_name: &str) -> &str {
 //   1. type_id 映射（核心1-4通用，扩展因源而异）
 //   2. 分页参数名（pagesize / limit）
 //   3. 默认页大小
-//   4. 其他参数在扩展时加入
+//   4. 处理器类型（platform 字段，默认 AppleCms）
+//   5. 其他参数在扩展时加入
 
 #[derive(Debug, Clone)]
 pub struct SourceConfig {
@@ -74,147 +79,116 @@ pub struct SourceConfig {
     pub categories: &'static [(i32, &'static str)],
 }
 
-/// 各源配置（按 url_prefix 匹配）
-/// 实测数据，勿随意修改
-pub const PER_SOURCE_CONFIGS: &[SourceConfig] = &[
-    SourceConfig {
-        url_prefix: "cj.lziapi.com",       // 量子资源
-        page_size_param: "pagesize",
-        default_page_size: 12,
-        categories: &[
-            (46, "短剧"),                   // 实测：独立分类，type_pid=0
-        ],
-    },
-    SourceConfig {
-        url_prefix: "cj.ffzyapi.com",       // 非凡资源
-        page_size_param: "pagesize",        // 实测：limit 无效，仅 pagesize 有效
-        default_page_size: 12,
-        categories: &[
-            (36, "短剧"),                   // 实测：连续剧子分类，type_pid=2
-        ],
-    },
-    SourceConfig {
-        url_prefix: "hongniuzy2.com",       // 红牛资源
-        page_size_param: "pagesize",        // 实测：limit 和 pagesize 均有效
-        default_page_size: 12,
-        categories: &[
-            (30, "短剧"),                   // 实测：独立分类
-        ],
-    },
-    SourceConfig {
-        url_prefix: "duanjuzy.com",         // 短剧资源
-        page_size_param: "pagesize",
-        default_page_size: 12,
-        categories: &[
-            (5, "短剧"),                    // 推测：短剧专用源，type_id=5 对应短剧
-        ],
-    },
+// ─── 搜索 URL 参数 ────────────────────────────────────────────────────────
+
+/// 搜索请求参数（已 URL 编码），用于构建下游源的 API URL
+/// 各源处理器（SourceHandler）接收此统一结构，转换为平台特有 URL
+pub struct SearchUrlParams {
+    pub keyword: String,
+    pub type_id: Option<i32>,
+    pub page: i32,
+    pub area: Option<String>,
+    pub year: Option<i32>,
+}
+
+// ─── 父子分类层级映射表 ────────────────────────────────────────────────
+//
+// 数据来源：Apple CMS 官方文档 https://www.kancloud.cn/pgcms/maccms/2405302
+// type_id 1-4 是固定的一级分类 (type_pid=0)。
+// 以下定义二级分类与其父分类的对应关系。
+//
+// 注意：
+// - type_id=5 在官方标准 v10 中为"资讯"(v7 中为"动作片")，因源而异
+//   不在本映射表中包含 type_id=5，由动态发现或 per-source 处理
+// - 各 per-source 扩展（如短剧 type_id=30/36/46）不在此定义，
+//   统一视为一级分类（type_pid=0）
+//
+// 用法：前端侧栏显示 type_pid=0 的一级分类，
+//       筛选栏显示 get_subcategories(pid) 返回的二级分类
+
+pub const PARENT_CATEGORY_MAP: &[(i32, i32, &str)] = &[
+    // (type_id, parent_type_id, display_name)
+    // ── 电影(1) 的子分类 ──
+    (6, 1, "喜剧片"),
+    (7, 1, "爱情片"),
+    (8, 1, "科幻片"),
+    (9, 1, "恐怖片"),
+    (10, 1, "剧情片"),
+    (11, 1, "战争片"),
+    // ── 电视剧(2) 的子分类 ──
+    (12, 2, "国产剧"),
+    (13, 2, "港台剧"),
+    (14, 2, "日韩剧"),
+    (15, 2, "欧美剧"),
 ];
+
+/// 获取指定一级分类的二级分类列表
+pub fn get_subcategories(parent_type_id: i32) -> Vec<(i32, &'static str)> {
+    PARENT_CATEGORY_MAP
+        .iter()
+        .filter(|(_, pid, _)| *pid == parent_type_id)
+        .map(|(tid, _, name)| (*tid, *name))
+        .collect()
+}
+
+/// 获取指定分类的父分类 type_id
+/// - 返回 None 表示一级分类（type_pid=0）
+/// - 返回 Some(pid) 表示二级分类，pid 为父分类 type_id
+pub fn get_parent_type_id(type_id: i32) -> Option<i32> {
+    if CORE_CATEGORIES.iter().any(|(id, _)| *id == type_id) {
+        return None; // 明确的一级分类
+    }
+    PARENT_CATEGORY_MAP
+        .iter()
+        .find(|(tid, _, _)| *tid == type_id)
+        .map(|(_, pid, _)| *pid)
+}
 
 // ─── 通用默认扩展（兜底）─────────────────────────────────────────────────
 //
-// 当源未在 PER_SOURCE_CONFIGS 中列出时（如 TVBox 动态发现的源），
-// 使用此默认映射。
+// 当源未在任何平台参数映射中列出时（如 TVBox 动态发现的源），
+// 且动态发现未覆盖时，使用此默认映射提供基础分类支持。
+//
 // 注意：type_id=5 在官方标准中是"动作片"或"资讯"，不是"短剧"！
 // 因此不在兜底中包含 type_id=5，由动态发现补充。
 
 pub const FALLBACK_EXTENDED: &[(i32, &str)] = &[
-    (6, "动作片"),
-    (7, "喜剧片"),
-    (8, "爱情片"),
-    (9, "科幻片"),
-    (10, "恐怖片"),
-    (11, "剧情片"),
-    (12, "战争片"),
-    (13, "国产剧"),
-    (14, "港台剧"),
-    (15, "日韩剧"),
-    (16, "欧美剧"),
+    (6, "喜剧片"),
+    (7, "爱情片"),
+    (8, "科幻片"),
+    (9, "恐怖片"),
+    (10, "剧情片"),
+    (11, "战争片"),
+    (12, "国产剧"),
+    (13, "港台剧"),
+    (14, "日韩剧"),
+    (15, "欧美剧"),
 ];
-
-// ─── 默认配置（用于未在 PER_SOURCE_CONFIGS 中列出的源） ─────────────────
-
-pub const DEFAULT_PAGE_SIZE_PARAM: &str = "pagesize";
-pub const DEFAULT_PAGE_SIZE: i32 = 99;
 
 // ─── 按 URL 查找配置 ─────────────────────────────────────────────────────
 
-/// 通过源 URL 查找对应的 SourceConfig
+/// 通过源 URL 查找对应的 SourceConfig（遍历所有已注册平台的参数映射）
 pub fn get_source_config(source_url: &str) -> Option<&'static SourceConfig> {
-    PER_SOURCE_CONFIGS.iter().find(|cfg| source_url.contains(cfg.url_prefix))
-}
-
-/// 获取源的分页参数名
-pub fn get_source_page_size_param(source_url: &str) -> &'static str {
-    get_source_config(source_url)
-        .map(|cfg| cfg.page_size_param)
-        .filter(|p| !p.is_empty())
-        .unwrap_or(DEFAULT_PAGE_SIZE_PARAM)
-}
-
-/// 获取源的默认分页大小
-pub fn get_source_default_page_size(source_url: &str) -> i32 {
-    get_source_config(source_url)
-        .map(|cfg| cfg.default_page_size)
-        .unwrap_or(DEFAULT_PAGE_SIZE)
-}
-
-/// 获取源的自定义 type_id 映射（核心分类之外）
-pub fn get_source_category_mapping(source_url: &str) -> &'static [(i32, &'static str)] {
-    get_source_config(source_url)
-        .map(|cfg| cfg.categories)
-        .unwrap_or(&[])
+    crate::source_handlers::all_configs()
+        .into_iter()
+        .find(|cfg| source_url.contains(cfg.url_prefix))
 }
 
 // ─── 构建 type_id 映射 ────────────────────────────────────────────────────
 
-/// 获取所有标准分类列表（核心 + 扩展合并，仅用于参考）
-pub fn get_standard_categories() -> Vec<(i32, String)> {
-    let mut out: Vec<(i32, String)> = CORE_CATEGORIES
-        .iter()
-        .map(|(id, name)| (*id, name.to_string()))
-        .collect();
-
-    let mut seen: std::collections::HashSet<String> =
-        out.iter().map(|(_, n)| n.clone()).collect();
-
-    // 加入兜底扩展
-    for (id, name) in FALLBACK_EXTENDED {
-        if seen.insert(name.to_string()) {
-            out.push((*id, name.to_string()));
-        }
-    }
-
-    // 加入 per-source 扩展中非核心分类
-    for cfg in PER_SOURCE_CONFIGS {
-        for (id, name) in cfg.categories {
-            if seen.insert(name.to_string()) {
-                out.push((*id, name.to_string()));
-            }
-        }
-    }
-
-    out
-}
-
-/// 从 type_name 查找核心分类的 type_id
-pub fn lookup_standard_type_id(type_name: &str) -> Option<i32> {
-    for (id, name) in CORE_CATEGORIES {
-        if *name == type_name {
-            return Some(*id);
-        }
-    }
-    None
-}
-
-/// 构建 per-source type_id 映射（基于静态映射）
+/// 构建 per-source type_id 映射（基于静态映射 + 各平台参数映射）
+///
+/// 参数 `per_source_configs` 接收各平台独立的 SourceConfig 列表，
+/// 由调用者传入（通常来自 source_handlers::all_configs()）。
 ///
 /// 返回 type_name → {key → type_id}
 /// key 可以是：
 ///   - "" 空字符串（通配所有源）
 ///   - URL 前缀（如 "cj.lziapi.com"，前缀匹配）
 ///   - 别名（如 "连续剧"，标记为 0 表示需要合并到核心分类）
-pub fn build_static_per_source() -> HashMap<String, HashMap<String, i32>> {
+pub fn build_static_per_source(
+    per_source_configs: &[&'static SourceConfig],
+) -> HashMap<String, HashMap<String, i32>> {
     let mut result: HashMap<String, HashMap<String, i32>> = HashMap::new();
 
     // ── 核心分类（type_id 1-4）：所有源通用 ──
@@ -229,8 +203,8 @@ pub fn build_static_per_source() -> HashMap<String, HashMap<String, i32>> {
         entry.insert(alias.to_string(), 0); // 0 表示别名标记
     }
 
-    // ── Per-source 扩展映射 ──
-    for cfg in PER_SOURCE_CONFIGS {
+    // ── Per-source 扩展映射（来自各平台独立配置） ──
+    for cfg in per_source_configs {
         for (tid, tname) in cfg.categories {
             let entry = result.entry(tname.to_string()).or_default();
             if !entry.contains_key(cfg.url_prefix) {
@@ -239,7 +213,7 @@ pub fn build_static_per_source() -> HashMap<String, HashMap<String, i32>> {
         }
     }
 
-    // ── 兜底扩展（type_id 6-16）：空 key 通配，由动态发现替代 ──
+    // ── 兜底扩展（type_id 6-15）：空 key 通配，由动态发现替代 ──
     for (tid, tname) in FALLBACK_EXTENDED {
         let entry = result.entry(tname.to_string()).or_default();
         entry.entry(String::new()).or_insert(*tid);
