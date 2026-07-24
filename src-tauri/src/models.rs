@@ -83,7 +83,7 @@ pub struct VideoDetail {
 }
 
 /// 弹弹play 弹幕数据结构
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DanmuItem {
     pub text: String,
     pub mode: i32,

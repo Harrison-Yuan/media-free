@@ -4,6 +4,7 @@ import type { Option } from "artplayer";
 import artplayerPluginDanmuku, { type Danmu } from "artplayer-plugin-danmuku";
 import Hls from "hls.js";
 import { getProxyPort } from "../lib/api";
+import { toast } from "./Toast";
 
 interface Props {
   url: string;
@@ -133,6 +134,9 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
       console.log(
         `[danmaku] ${danmu.length > 0 ? `loaded ${danmu.length} items` : "no data"} for "${t}"`,
       );
+      if (danmu.length === 0) {
+        toast(`未找到"${t}"的弹幕`, "info");
+      }
       return danmu as Danmu[];
     };
 
@@ -387,19 +391,6 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, referer]);
-
-  // title/episodeLabel 变化时重新触发弹幕加载
-  useEffect(() => {
-    if (danmukuRef.current && danmukuRef.current.load) {
-      const t = titleRef.current;
-      const ep = epRef.current;
-      if (!t) return;
-      fetchDanmaku(t, ep || "").then((danmu) => {
-        if (danmu.length > 0) danmukuRef.current?.load(danmu);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, episodeLabel]);
 
   return (
     <>
