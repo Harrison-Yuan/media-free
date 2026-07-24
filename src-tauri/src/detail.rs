@@ -103,34 +103,48 @@ async fn fetch_single_detail(
     // 通过源处理器获取该平台特有的详情 URL 列表（含 fallback pattern）
     let handler = source_handlers::get_handler(api_url);
     let paths = handler.build_detail_urls(base, video_id);
+    eprintln!("[detail] '{}' trying URLs: {:?}", source_name, paths);
     for path in &paths {
         let resp = match CLIENT.get(path).send().await {
             Ok(r) if r.status().is_success() => r,
-            _ => continue,
+            Ok(r) => {
+                eprintln!("[detail] '{}' HTTP {} for {}", source_name, r.status(), path);
+                continue;
+            }
+            Err(e) => {
+                eprintln!("[detail] '{}' request failed: {} for {}", source_name, e, path);
+                continue;
+            }
         };
         let text =
             String::from_utf8_lossy(&resp.bytes().await.unwrap_or_default()).to_string();
         eprintln!("[detail] '{}' response: {}B", source_name, text.len());
 
-        if let Ok(ac) = serde_json::from_str::<AppleCmsResponse>(&text) {
-            if let Some(list) = ac.list {
-                if let Some(item) = list.into_iter().next() {
-                    let from = item.vod_play_from.unwrap_or_default();
-                    let urls = item.vod_play_url.unwrap_or_default();
-                    let episodes = parse_episodes(&from, &urls);
-                    let source_groups = parse_source_groups(&from, &urls);
-                    return Ok(VideoDetail {
-                        id: item.vod_id.unwrap_or_default(),
-                        title: item.vod_name.unwrap_or_default(),
-                        poster: resolve_poster(&item.vod_pic.unwrap_or_default(), api_url),
-                        description: item.vod_content.unwrap_or_default(),
-                        source_name: source_name.to_string(),
-                        episodes,
-                        source_groups,
-                    });
+        match serde_json::from_str::<AppleCmsResponse>(&text) {
+            Ok(ac) => {
+                if let Some(list) = ac.list {
+                    if let Some(item) = list.into_iter().next() {
+                        let from = item.vod_play_from.unwrap_or_default();
+                        let urls = item.vod_play_url.unwrap_or_default();
+                        let episodes = parse_episodes(&from, &urls);
+                        let source_groups = parse_source_groups(&from, &urls);
+                        return Ok(VideoDetail {
+                            id: item.vod_id.unwrap_or_default(),
+                            title: item.vod_name.unwrap_or_default(),
+                            poster: resolve_poster(&item.vod_pic.unwrap_or_default(), api_url),
+                            description: item.vod_content.unwrap_or_default(),
+                            source_name: source_name.to_string(),
+                            episodes,
+                            source_groups,
+                        });
+                    }
                 }
             }
+            Err(e) => {
+                eprintln!("[detail] '{}' JSON parse failed: {}", source_name, e);
+            }
         }
+
         if text.trim().starts_with('<') {
             if let Ok(rss) = quick_xml::de::from_str::<crate::models::RssResponse>(&text) {
                 if let Some(list) = rss.rss.and_then(|r| r.list) {

@@ -5,7 +5,6 @@
 mod categories;
 mod client;
 mod danmaku_cache;
-mod danmu_server;
 mod detail;
 mod mapping;
 mod models;
@@ -172,19 +171,7 @@ async fn fetch_danmaku(title: String, episode_label: String) -> Result<Vec<Danmu
 
     // ── 2. 远程获取 ──
 
-    // Try 1: 本地 danmu_api 服务（Sidecar，最快且不依赖外网）
-    if let Some(local_base) = danmu_server::get_base_url() {
-        match fetch_danmaku_from_base(&local_base, "local", &title, &episode_label).await {
-            Ok(danmu) if !danmu.is_empty() => {
-                eprintln!("[danmaku] local: {} items", danmu.len());
-                danmaku_cache::set_cache(&title, &episode_label, &danmu);
-                return Ok(danmu);
-            }
-            _ => eprintln!("[danmaku] local: no results"),
-        }
-    }
-
-    // Try 2: 弹弹play（动漫弹幕为主）
+    // Try 1: 弹弹play（动漫弹幕为主）
     match fetch_danmaku_from_base(DANDANPLAY_BASE, "dandanplay", &title, &episode_label).await {
         Ok(danmu) if !danmu.is_empty() => {
             eprintln!("[danmaku] dandanplay: {} items", danmu.len());
@@ -411,14 +398,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
-        .setup(|app| {
+        .setup(|_app| {
             // 启动本地视频代理（非阻塞）
             tauri::async_runtime::spawn(async {
                 let _ = proxy::start().await;
-            });
-            // 启动本地弹幕服务器（非阻塞）
-            tauri::async_runtime::spawn(async {
-                danmu_server::start().await;
             });
             Ok(())
         })

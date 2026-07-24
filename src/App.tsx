@@ -40,7 +40,10 @@ function AppInner() {
     setDetailLoading(true);
     getVideoDetail(source, api, id)
       .then(setDetail)
-      .catch(() => toast("详情加载失败", "error"))
+      .catch((e) => {
+        console.error("[detail] fetch failed:", e);
+        toast(`详情加载失败: ${e.message || e}`, "error");
+      })
       .finally(() => setDetailLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
