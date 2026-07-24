@@ -84,41 +84,44 @@ pub async fn search_video(
     };
     let pg = page.unwrap_or(1);
 
-    // ── 构建搜索 URL ──
-    // 每个源通过其 SourceConfig::build_list_url 自定义 URL 格式
-    // ── 构建搜索 URL ──
-    let search_urls: Vec<(String, String, String)> = sources
-        .iter()
-        .map(|src| {
-            let actual_tid = cat_name
-                .as_ref()
-                .and_then(|name| categories::get_type_id_for_source(name, &src.url))
-                .or(type_id);
-            let params = mapping::SearchUrlParams {
-                keyword: encoded.clone(),
-                type_id: actual_tid,
-                page: pg,
-                area: area.as_ref().map(|a| urlencode(a)),
-                year,
-            };
+    /// 构建搜索 URL 列表
+    let build_urls = |year_val: Option<i32>| -> Vec<(String, String, String)> {
+        sources
+            .iter()
+            .map(|src| {
+                let actual_tid = cat_name
+                    .as_ref()
+                    .and_then(|name| categories::get_type_id_for_source(name, &src.url))
+                    .or(type_id);
+                let params = mapping::SearchUrlParams {
+                    keyword: encoded.clone(),
+                    type_id: actual_tid,
+                    page: pg,
+                    area: area.as_ref().map(|a| urlencode(a)),
+                    year: year_val,
+                };
+                let handler = source_handlers::get_handler(&src.url);
+                let config = mapping::get_source_config(&src.url);
+                let url = handler.build_list_url(&src.url, config, &params);
 
-            let handler = source_handlers::get_handler(&src.url);
-            let config = mapping::get_source_config(&src.url);
-            let url = handler.build_list_url(&src.url, config, &params);
+                eprintln!("[search] URL '{}': {}", src.name, url);
 
-            eprintln!("[search] URL '{}': {}", src.name, url);
+                (src.name.clone(), src.url.clone(), url)
+            })
+            .collect()
+    };
 
-            (src.name.clone(), src.url.clone(), url)
-        })
-        .collect();
-
+    let search_urls = build_urls(year);
     eprintln!("[search] built {} search URLs", search_urls.len());
 
     // ── Channel: 所有源查询结果汇集于此 ──
     let (tx, mut rx) = mpsc::unbounded_channel::<(String, Vec<VideoItem>)>();
 
-    for (name, api_base, search_url) in search_urls {
+    for (name, api_base, search_url) in &search_urls {
         let tx = tx.clone();
+        let name = name.clone();
+        let api_base = api_base.clone();
+        let search_url = search_url.clone();
         tokio::spawn(async move {
             let result = fetch_source(&name, &search_url, &api_base).await;
             if let Ok(items) = result {
@@ -133,7 +136,7 @@ pub async fn search_video(
     // ── Phase 1: 收集首批结果 ──
     let mut items = Vec::new();
     let mut source_count = 0u32;
-    let initial_deadline = tokio::time::sleep(std::time::Duration::from_secs(6));
+    let initial_deadline = tokio::time::sleep(std::time::Duration::from_secs(8));
     tokio::pin!(initial_deadline);
 
     loop {
@@ -164,6 +167,7 @@ pub async fn search_video(
     }
 
     sort_and_dedup(&mut items);
+
     let initial_items = items.clone();
     let initial_len = initial_items.len();
     let elapsed = start.elapsed().as_millis() as u64;
@@ -274,10 +278,14 @@ async fn fetch_source(
                     let urls = i.vod_play_url.unwrap_or_default();
                     let episodes = parse_episodes(&from, &urls);
                     let source_groups = parse_source_groups(&from, &urls);
+                    let poster = resolve_poster(&i.vod_pic.unwrap_or_default(), api_base);
+                    if poster.is_empty() {
+                        eprintln!("[fetch] '{}' item '{}' has NO poster", name, i.vod_name.as_deref().unwrap_or("?"));
+                    }
                     VideoItem {
                         id: i.vod_id.unwrap_or_default(),
                         title: i.vod_name.unwrap_or_default(),
-                        poster: resolve_poster(&i.vod_pic.unwrap_or_default(), api_base),
+                        poster,
                         remark: i.vod_remarks.unwrap_or_default(),
                         description: i.vod_content.unwrap_or_default(),
                         source: SourceInfo {

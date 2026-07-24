@@ -4,7 +4,6 @@ import type { Option } from "artplayer";
 import artplayerPluginDanmuku, { type Danmu } from "artplayer-plugin-danmuku";
 import Hls from "hls.js";
 import { getProxyPort } from "../lib/api";
-import { toast } from "./Toast";
 
 interface Props {
   url: string;
@@ -123,19 +122,16 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
     let blobFallbackTried = false;
 
     // 弹幕加载器
-    let danmakuLoaded = false;
     const danmakuLoader = async (): Promise<Danmu[]> => {
-      if (danmakuLoaded) return [];
-      danmakuLoaded = true;
       const t = titleRef.current;
       const ep = epRef.current;
       if (!t) return [];
+
       const danmu = await fetchDanmaku(t, ep || "");
-      console.log(
-        `[danmaku] ${danmu.length > 0 ? `loaded ${danmu.length} items` : "no data"} for "${t}"`,
-      );
-      if (danmu.length === 0) {
-        toast(`未找到"${t}"的弹幕`, "info");
+      // 确保所有弹幕为滚动模式
+      danmu.forEach((d) => (d.mode = 0));
+      if (danmu.length > 0) {
+        console.log(`[danmaku] loaded ${danmu.length} items for "${t}"`);
       }
       return danmu as Danmu[];
     };
@@ -281,12 +277,16 @@ export function VideoPlayer({ url, referer, title, episodeLabel }: Props) {
       plugins: [
         artplayerPluginDanmuku({
           danmuku: danmakuLoader,
-          speed: 5,
+          speed: 3,
           opacity: 0.8,
           fontSize: 20,
           margin: [10, 100],
           antiOverlap: true,
           synchronousPlayback: true,
+          mode: 0,
+          modes: [0],
+          visible: true,
+          emitter: false,
         }),
       ],
     };

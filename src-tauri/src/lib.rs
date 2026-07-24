@@ -16,7 +16,7 @@ mod sources;
 
 use std::time::Instant;
 
-use client::CLIENT;
+use client::{CLIENT, DANMAKU_CLIENT};
 use models::DanmuItem;
 use parser::{extract_episode_num, urlencode};
 use sources::{collect_sources, SourceStatus};
@@ -151,242 +151,241 @@ async fn fetch_subcategories(parent_type_id: i32) -> Vec<categories::SubCategory
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 命令：弹幕
+//
+// 策略：SQLite 缓存优先 → MISS 时从 Cloudflare Workers 远程拉取 → 写入缓存
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// 弹弹play 弹幕服务
-const DANDANPLAY_BASE: &str = "https://api.dandanplay.net";
-/// danmu_api 公共实例（社区维护，覆盖更多平台：爱奇艺/优酷/腾讯/B站/芒果等）
-const DANMU_API_FALLBACK: &str = "https://dm.stardm.us.kg/87654321";
+/// 自部署的 Cloudflare Workers 弹幕 API 基地址（自定义域名 + Cloudflare CDN）
+const DANMAKU_WORKERS_BASE: &str = "https://danmu.cosvast.cn";
 
 #[tauri::command]
 async fn fetch_danmaku(title: String, episode_label: String) -> Result<Vec<DanmuItem>, String> {
-    eprintln!("[danmaku] searching for '{}' ep='{}'", title, episode_label);
-
-    // ── 1. 查本地缓存 ──
-    if let Some(cached) = danmaku_cache::get_cached(&title, &episode_label) {
+    // 1. 缓存优先
+    let cached = danmaku_cache::get_cached(&title, &episode_label).unwrap_or_default();
+    if !cached.is_empty() {
         eprintln!("[danmaku] cache HIT: {} items for '{}'", cached.len(), title);
         return Ok(cached);
     }
-    eprintln!("[danmaku] cache MISS, trying remote...");
 
-    // ── 2. 远程获取 ──
+    eprintln!("[danmaku] cache MISS, spawning background fetch for '{}'", title);
 
-    // Try 1: 弹弹play（动漫弹幕为主）
-    match fetch_danmaku_from_base(DANDANPLAY_BASE, "dandanplay", &title, &episode_label).await {
-        Ok(danmu) if !danmu.is_empty() => {
-            eprintln!("[danmaku] dandanplay: {} items", danmu.len());
-            danmaku_cache::set_cache(&title, &episode_label, &danmu);
-            return Ok(danmu);
+    // 2. 后台远程拉取（不阻塞播放器初始化）
+    let t = title.clone();
+    let el = episode_label.clone();
+    tokio::spawn(async move {
+        let danmu = fetch_danmaku_from_workers(&t, &el).await;
+        if let Ok(ref d) = danmu {
+            danmaku_cache::set_cache(&t, &el, d);
         }
-        _ => {
-            eprintln!("[danmaku] dandanplay: no results, trying fallback...");
-        }
-    }
+        let count = danmu.as_ref().map(|d| d.len()).unwrap_or(0);
+        eprintln!("[danmaku] background fetch done: {} items for '{}'", count, t);
+    });
 
-    // Try 3: danmu_api 公共实例（外网 fallback）
-    let danmu = match fetch_danmaku_from_base(DANMU_API_FALLBACK, "danmu_api", &title, &episode_label).await {
-        Ok(d) => {
-            eprintln!("[danmaku] danmu_api: {} items", d.len());
-            d
-        }
-        Err(e) => {
-            eprintln!("[danmaku] all sources failed: {}", e);
-            return Err(e);
-        }
-    };
-
-    danmaku_cache::set_cache(&title, &episode_label, &danmu);
-    Ok(danmu)
+    // 3. 立即返回空，播放器秒开
+    Ok(vec![])
 }
 
-/// 从指定的弹幕服务基地址获取弹幕（兼容弹弹play API 规范）
-async fn fetch_danmaku_from_base(
-    base_url: &str,
-    source_label: &str,
+/// 从自部署的 Cloudflare Workers 弹幕 API 获取弹幕
+///
+/// API 协议（huangxd-/danmu_api）：
+///   GET /api/v2/search/anime?keyword={title}       → 搜索动漫
+///   GET /api/v2/bangumi/{animeId}                   → 获取剧集列表
+///   GET /api/v2/comment/{episodeId}?withRelated=true → 获取弹幕
+///
+/// 注意：该 API 有速率限制（默认 3 次/分钟），且可能返回非 JSON 响应（限流 HTML）。
+///       所有错误/缺失弹幕均返回空列表而非 Err。
+///       总超时 8 秒，超过则返回空（避免阻塞播放器初始化）。
+async fn fetch_danmaku_from_workers(
     title: &str,
     episode_label: &str,
 ) -> Result<Vec<DanmuItem>, String> {
-    let encoded_title = urlencode(title);
-    let search_url = format!(
-        "{}/api/v2/search/anime?keyword={}",
-        base_url, encoded_title
-    );
+    use tokio::time::timeout;
 
-    let resp = CLIENT
-        .get(&search_url)
-        .timeout(std::time::Duration::from_secs(10))
-        .send()
-        .await
-        .map_err(|e| {
-            let kind = if e.is_timeout() { "timeout" }
-                else if e.is_connect() { "connect" }
-                else if e.is_request() { "request" }
-                else { "unknown" };
-            let msg = format!("[{}] search FAILED ({kind}): {e}", source_label);
-            eprintln!("{}", msg);
-            msg
-        })?;
-    if !resp.status().is_success() {
-        let msg = format!("[{}] search HTTP {}", source_label, resp.status());
-        eprintln!("{}", msg);
-        return Err(msg);
+    /// 发起 GET 请求，返回 JSON Value（非 200 或非 JSON 时返回 None）
+    async fn try_get_json(
+        client: &reqwest::Client,
+        url: &str,
+        timeout_secs: u64,
+    ) -> Option<serde_json::Value> {
+        let resp = client
+            .get(url)
+            .timeout(std::time::Duration::from_secs(timeout_secs))
+            .send()
+            .await
+            .ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        let text = resp.text().await.ok()?;
+        serde_json::from_str(&text).ok()
     }
-    let body: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| {
-            let msg = format!("[{}] search parse: {}", source_label, e);
-            eprintln!("{}", msg);
-            msg
-        })?;
 
-    let animes = body["animes"]
-        .as_array()
-        .ok_or_else(|| {
-            let msg = format!("[{}] no animes in response", source_label);
-            eprintln!("{}", msg);
-            msg
-        })?;
-    let anime = animes
-        .first()
-        .ok_or_else(|| {
-            let msg = format!("[{}] no matching anime for '{}'", source_label, title);
-            eprintln!("{}", msg);
-            msg
-        })?;
-    let anime_id = anime["animeId"]
-        .as_i64()
-        .ok_or_else(|| {
-            let msg = format!("[{}] missing animeId", source_label);
-            eprintln!("{}", msg);
-            msg
-        })?;
+    async fn inner(
+        title: &str,
+        episode_label: &str,
+    ) -> Result<Vec<DanmuItem>, String> {
+        let base = DANMAKU_WORKERS_BASE;
+        let label = "workers";
 
-    eprintln!("[{}] matched anime_id={} for '{}'", source_label, anime_id, title);
+        // ── 1. 搜索动漫 ──
+        let encoded_title = urlencode(title);
+        let search_url = format!("{}/api/v2/search/anime?keyword={}", base, encoded_title);
+        let body = match try_get_json(&DANMAKU_CLIENT, &search_url, 15).await {
+            Some(b) => b,
+            None => {
+                eprintln!("[{}] search failed for '{}'", label, title);
+                return Ok(vec![]);
+            }
+        };
+        let animes = match body["animes"].as_array() {
+            Some(a) if !a.is_empty() => a,
+            _ => {
+                eprintln!("[{}] no animes for '{}'", label, title);
+                return Ok(vec![]);
+            }
+        };
+        let anime_id = match animes[0]["animeId"].as_i64() {
+            Some(id) => id,
+            None => {
+                eprintln!("[{}] missing animeId for '{}'", label, title);
+                return Ok(vec![]);
+            }
+        };
+        eprintln!("[{}] matched anime_id={} for '{}'", label, anime_id, title);
 
-    // 获取剧集列表
-    let ep_url = format!(
-        "{}/api/v2/search/episodes?animeId={}",
-        base_url, anime_id
-    );
-    let resp = CLIENT
-        .get(&ep_url)
-        .send()
-        .await
-        .map_err(|e| {
-            let msg = format!("[{}] episodes failed: {}", source_label, e);
-            eprintln!("{}", msg);
-            msg
-        })?;
-    let ep_body: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| {
-            let msg = format!("[{}] episodes parse: {}", source_label, e);
-            eprintln!("{}", msg);
-            msg
-        })?;
+        // 短暂间隔，缓解限流
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
 
-    let episodes = ep_body["episodes"]
-        .as_array()
-        .ok_or_else(|| {
-            let msg = format!("[{}] no episodes", source_label);
-            eprintln!("{}", msg);
-            msg
-        })?;
+        // ── 2. 获取剧集列表 ──
+        let bangumi_url = format!("{}/api/v2/bangumi/{}", base, anime_id);
+        let bg_body = match try_get_json(&DANMAKU_CLIENT, &bangumi_url, 10).await {
+            Some(b) => b,
+            None => {
+                eprintln!("[{}] bangumi failed for anime_id={}", label, anime_id);
+                return Ok(vec![]);
+            }
+        };
+        let episodes = match bg_body["bangumi"]["episodes"].as_array() {
+            Some(e) => e,
+            None => {
+                eprintln!("[{}] no episodes in bangumi for anime_id={}", label, anime_id);
+                return Ok(vec![]);
+            }
+        };
+        eprintln!(
+            "[{}] '{}' → {} episodes in bangumi",
+            label, title, episodes.len()
+        );
 
-    // 匹配剧集
-    let target_num = extract_episode_num(episode_label);
-    eprintln!("[{}] episode_label='{}' → parsed_num={:?}, total_episodes={}", source_label, episode_label, target_num, episodes.len());
-    let matched = if let Some(num) = target_num {
-        episodes
+        // 匹配剧集
+        let target_num = extract_episode_num(episode_label);
+        let matched = if let Some(num) = target_num {
+            episodes
+                .iter()
+                .find(|ep| {
+                    // episodeNumber 可能是字符串 "1" 或数字 1
+                    ep["episodeNumber"]
+                        .as_str()
+                        .and_then(|s| s.parse::<i64>().ok())
+                        .or_else(|| ep["episodeNumber"].as_i64())
+                        == Some(num as i64)
+                })
+                .or_else(|| episodes.first())
+        } else {
+            episodes.first()
+        };
+        let episode = match matched {
+            Some(e) => e,
+            None => {
+                eprintln!("[{}] no matching episode for '{}'", label, episode_label);
+                return Ok(vec![]);
+            }
+        };
+        let episode_id = match episode["episodeId"].as_i64() {
+            Some(id) => id,
+            None => {
+                eprintln!("[{}] missing episodeId", label);
+                return Ok(vec![]);
+            }
+        };
+        eprintln!(
+            "[{}] matched episode_id={} for ep='{}'",
+            label, episode_id, episode_label
+        );
+
+        // 间隔，缓解限流
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+        // ── 3. 获取弹幕 ──
+        let comment_url = format!(
+            "{}/api/v2/comment/{}?withRelated=true",
+            base, episode_id
+        );
+        let cmt_body = match try_get_json(&DANMAKU_CLIENT, &comment_url, 15).await {
+            Some(b) => b,
+            None => {
+                eprintln!(
+                    "[{}] comment failed for episode_id={} (rate-limited or no data)",
+                    label, episode_id
+                );
+                return Ok(vec![]);
+            }
+        };
+        let comments = match cmt_body["comments"].as_array() {
+            Some(c) => c,
+            None => {
+                eprintln!("[{}] no comments array", label);
+                return Ok(vec![]);
+            }
+        };
+
+        let danmu: Vec<DanmuItem> = comments
             .iter()
-            .find(|ep| ep["episodeNumber"].as_i64() == Some(num as i64))
-            .or_else(|| episodes.first())
-    } else {
-        episodes.first()
-    };
-    let episode = matched.ok_or_else(|| {
-        let msg = format!("[{}] no matching episode for '{}'", source_label, episode_label);
-        eprintln!("{}", msg);
-        msg
-    })?;
-    let episode_id = episode["episodeId"]
-        .as_i64()
-        .ok_or_else(|| {
-            let msg = format!("[{}] missing episodeId", source_label);
-            eprintln!("{}", msg);
-            msg
-        })?;
-
-    eprintln!("[{}] matched episode_id={} for '{}'", source_label, episode_id, episode_label);
-
-    // 获取弹幕
-    let comment_url = format!(
-        "{}/api/v2/comment/{}?format=json",
-        base_url, episode_id
-    );
-    let resp = CLIENT
-        .get(&comment_url)
-        .send()
-        .await
-        .map_err(|e| {
-            let msg = format!("[{}] comment failed: {}", source_label, e);
-            eprintln!("{}", msg);
-            msg
-        })?;
-    let cmt_body: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| {
-            let msg = format!("[{}] comment parse: {}", source_label, e);
-            eprintln!("{}", msg);
-            msg
-        })?;
-
-    let comments = cmt_body["comments"]
-        .as_array()
-        .ok_or_else(|| {
-            let msg = format!("[{}] no comments", source_label);
-            eprintln!("{}", msg);
-            msg
-        })?;
-
-    let danmu: Vec<DanmuItem> = comments
-        .iter()
-        .filter_map(|c| {
-            let text = c["m"].as_str()?;
-            if text.trim().is_empty() {
-                return None;
-            }
-            let p = c["p"].as_str()?;
-            let parts: Vec<&str> = p.split(',').collect();
-            if parts.len() < 4 {
-                return None;
-            }
-            let time: f64 = parts[0].parse().ok()?;
-            let mode: i32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-            let color_int: u32 = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0xFFFFFF);
-            let color = format!("#{:06x}", color_int);
-            Some(DanmuItem {
-                text: text.to_string(),
-                mode,
-                color,
-                time,
+            .filter_map(|c| {
+                let text = c["m"].as_str()?;
+                if text.trim().is_empty() {
+                    return None;
+                }
+                let p = c["p"].as_str()?;
+                let parts: Vec<&str> = p.split(',').collect();
+                if parts.len() < 4 {
+                    return None;
+                }
+                let time: f64 = parts[0].parse().ok()?;
+                // dandanplay mode → artplayer-plugin-danmuku mode 映射
+                //   1(滚动) → 0, 4(底部) → 2, 5(顶部) → 1
+                let mode = match parts.get(1).and_then(|s| s.parse::<i32>().ok()) {
+                    Some(4) => 2,
+                    Some(5) => 1,
+                    _ => 0, // 1(滚动)、6(逆向滚动)、未知 → 0(滚动)
+                };
+                let color_int: u32 = parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0xFFFFFF);
+                let color = format!("#{:06x}", color_int);
+                Some(DanmuItem {
+                    text: text.to_string(),
+                    mode,
+                    color,
+                    time,
+                })
             })
-        })
-        .collect();
+            .collect();
 
-    eprintln!(
-        "[{}] '{}' ep='{}' → anime={} episode={} danmu={}",
-        source_label,
-        title,
-        episode_label,
-        anime_id,
-        episode_id,
-        danmu.len()
-    );
-    Ok(danmu)
+        eprintln!(
+            "[{}] '{}' ep='{}' → anime={} episode={} danmu={}",
+            label, title, episode_label, anime_id, episode_id, danmu.len()
+        );
+        Ok(danmu)
+    }
+
+    // 总超时 8 秒，超过则返回空（避免阻塞播放器初始化）
+    match timeout(std::time::Duration::from_secs(8), inner(title, episode_label)).await {
+        Ok(Ok(d)) => Ok(d),
+        Ok(Err(_)) => Ok(vec![]),
+        Err(_) => {
+            eprintln!("[workers] timeout (8s) for '{}' ep='{}'", title, episode_label);
+            Ok(vec![])
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

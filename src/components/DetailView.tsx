@@ -3,6 +3,7 @@ import { VideoPlayer } from "./VideoPlayer";
 import { EpisodeGrid } from "./EpisodeGrid";
 import type { VideoDetail, EpisodeItem } from "../types";
 import { getSourceDisplayName } from "../lib/utils";
+import { ProxiedImg } from "./ProxiedImg";
 
 interface Props {
   detail: VideoDetail;
@@ -34,6 +35,15 @@ export function DetailView({ detail, playing, onPlay }: Props) {
       setPlayingLabel(first.label);
       setPlayKey((k) => k + 1);
       onPlay(first.url);
+      // 后台预取弹幕
+      if (detail?.title) {
+        import("@tauri-apps/api/core").then(({ invoke }) => {
+          invoke("fetch_danmaku", {
+            title: detail.title,
+            episodeLabel: first.label,
+          }).catch(() => {});
+        });
+      }
     }
     // 只在 episodes 变化时触发，不含 playing
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,6 +53,15 @@ export function DetailView({ detail, playing, onPlay }: Props) {
     setPlayingLabel(label);
     setPlayKey((k) => k + 1);
     onPlay(url);
+    // 后台预取弹幕（不阻塞播放）
+    if (detail?.title) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("fetch_danmaku", {
+          title: detail.title,
+          episodeLabel: label,
+        }).catch(() => {});
+      });
+    }
   };
 
   const handleSourceChange = (index: number) => {
@@ -122,7 +141,7 @@ export function DetailView({ detail, playing, onPlay }: Props) {
         {/* ── Drawer toggle button (absolute 覆盖在播放器上) ── */}
         <button
           onClick={() => setDrawerOpen((v) => !v)}
-          className="group absolute z-30 flex items-center justify-center rounded-l-md transition-all duration-300 opacity-0 hover:opacity-100 border-sweep"
+          className="group absolute z-30 flex items-center justify-center rounded-l-md transition-all duration-300"
           style={{
             height: 64,
             width: 20,
@@ -135,7 +154,12 @@ export function DetailView({ detail, playing, onPlay }: Props) {
             color: "var(--text-tertiary)",
             borderLeft: "1px solid rgba(255,255,255,0.5)",
             boxShadow: drawerOpen ? "-2px 0 12px rgba(0,0,0,0.04)" : "none",
+            opacity: drawerOpen ? 0.6 : 0.4,
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.opacity = drawerOpen ? "0.6" : "0.4")
+          }
           title={drawerOpen ? "收起侧栏" : "展开侧栏"}
         >
           <svg
@@ -179,15 +203,11 @@ export function DetailView({ detail, playing, onPlay }: Props) {
                   className="shrink-0"
                   style={{ filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.12))" }}
                 >
-                  <img
+                  <ProxiedImg
                     src={detail.poster}
                     alt={detail.title}
+                    title={detail.title}
                     className="h-24 w-[72px] rounded-lg object-cover"
-                    style={{ borderRadius: 10 }}
-                    onError={(e) => {
-                      const img = e.target as HTMLImageElement;
-                      img.style.display = "none";
-                    }}
                   />
                 </div>
               )}

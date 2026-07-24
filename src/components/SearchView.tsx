@@ -6,6 +6,7 @@ import { posterFallbackStyle } from "../lib/utils";
 import { SidebarMenu } from "./SidebarMenu";
 import { SearchBar } from "./SearchBar";
 import { CategoryFilter } from "./CategoryFilter";
+import { ProxiedImg } from "./ProxiedImg";
 
 interface Props {
   query: string;
@@ -44,6 +45,7 @@ export function SearchView({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const catReqId = useRef(0); // 分类请求计数器，用于丢弃过期响应
 
   // ── Sidebar / browse state ──
   const [categories, setCategories] = useState<Category[]>(CORE_CATEGORIES);
@@ -103,11 +105,13 @@ export function SearchView({
   };
 
   const handleCatClick = async (cat: Category) => {
+    const reqId = ++catReqId.current;
     setHomeActive(false);
     setActiveCat(cat);
     setActiveL2TypeId(null); // 切换一级分类时重置二级筛选
     setActiveArea(null);
     setActiveYear(null);
+    setCatResults([]); // 清空旧结果，触发骨架屏加载状态
     setCatLoading(true);
     setCatSearched(true);
     setCatPage(1);
@@ -116,13 +120,15 @@ export function SearchView({
     try {
       // 使用分类名作为关键字搜索全站（不限制 type_id），兼容各平台不同的分类映射
       const r = await searchVideo(cat.type_name, undefined, 1);
+      if (catReqId.current !== reqId) return; // 过期响应，丢弃
       setCatResults(r.items);
       setCatHasMore(r.items.length >= 20);
     } catch {
+      if (catReqId.current !== reqId) return;
       setCatResults([]);
       setCatHasMore(false);
     } finally {
-      setCatLoading(false);
+      if (catReqId.current === reqId) setCatLoading(false);
     }
   };
 
@@ -132,6 +138,7 @@ export function SearchView({
     area: string | null,
     year: number | null,
   ) => {
+    const reqId = ++catReqId.current;
     if (!activeCat) return;
     setCatLoading(true);
     setCatSearched(true);
@@ -147,13 +154,16 @@ export function SearchView({
         area ?? undefined,
         year ?? undefined,
       );
+      if (catReqId.current !== reqId) return;
       setCatResults(r.items);
       setCatHasMore(r.items.length >= 20);
     } catch {
-      setCatResults([]);
-      setCatHasMore(false);
+      if (catReqId.current === reqId) {
+        setCatResults([]);
+        setCatHasMore(false);
+      }
     } finally {
-      setCatLoading(false);
+      if (catReqId.current === reqId) setCatLoading(false);
     }
   };
 
@@ -603,21 +613,11 @@ function ResultGrid({
                 </span>
               </div>
               {item.poster && (
-                <img
+                <ProxiedImg
                   src={item.poster}
                   alt={item.title}
+                  title={item.title}
                   className="absolute inset-0 h-full w-full object-cover transition-all duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    const src = img.src;
-                    if (img.dataset?.retried || !src.startsWith("http://")) {
-                      img.style.display = "none";
-                      return;
-                    }
-                    img.dataset.retried = "1";
-                    img.src = "https://" + src.slice(7);
-                  }}
                 />
               )}
               <div className="absolute left-2 top-2 z-10">

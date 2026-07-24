@@ -8,9 +8,10 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::time::Instant;
 
-/// 全局 HTTP 客户端
+/// 全局 HTTP 客户端（no_proxy 绕过系统代理，直连国内视频源 CDN）
 pub static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     reqwest::Client::builder()
+        .no_proxy()
         .timeout(std::time::Duration::from_secs(15))
         .connect_timeout(std::time::Duration::from_secs(8))
         .http1_only()
@@ -19,6 +20,18 @@ pub static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
         .danger_accept_invalid_certs(true)
         .build()
         .expect("reqwest::Client init failed")
+});
+
+/// 弹幕专用 HTTP 客户端（尊重系统代理，Clash 开启时可访问 Cloudflare Workers）
+pub static DANMAKU_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .http1_only()
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+        .danger_accept_invalid_certs(true)
+        .build()
+        .expect("danmaku Client init failed")
 });
 
 /// 源健康状态
