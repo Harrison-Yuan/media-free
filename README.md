@@ -10,6 +10,9 @@
   聚合多家视频资源站，搜你所想，看你想看
 </p>
 
+> **⚠️ 免责声明**  
+> 本应用仅供学习和研究用途。应用本身不存储、不托管、不传播任何视频内容，仅作为搜索工具聚合展示来自公开第三方接口的数据。所有视频内容的版权归原始权利人所有。用户应遵守所在地法律法规，仅用于合法目的。如有侵权，请联系相关资源站处理。使用本应用即代表同意上述条款。
+
 <p align="center">
   <a href="https://github.com/Harrison-Yuan/awesome-zhuiju-free/releases">
     <img src="https://img.shields.io/github/v/release/Harrison-Yuan/awesome-zhuiju-free?style=flat&label=最新版本&color=007aff" alt="Release">
